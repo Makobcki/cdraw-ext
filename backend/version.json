@@ -1,10 +1,10 @@
 {
-  "version": "1.0.0",
+  "version": "1.2.1",
   "auto_check": true,
   "update_url": "https://raw.githubusercontent.com/Makobcki/cdraw-ext/main/backend/version.json",
   "last_checked": null,
-  "latest_version": "1.0.0",
-  "release_notes": "",
+  "latest_version": "1.2.1",
+  "release_notes": "Версия 1.2.1:\n- Расширенная фильтрация моделей: исключение графических генераторов (Image) и внешних агентов (agent).\n- Ускоренный показ API-имени модели при наведении в списке (1.2 сек, in-place, IE11).\n- Строгая дедупликация списка моделей по их системному API-идентификатору.\n- Отключение лишних всплывающих окон при проверке актуальной версии.",
   "download_url": "https://github.com/Makobcki/cdraw-ext/archive/refs/heads/main.zip",
   "update_available": false,
   "last_updated": null,
