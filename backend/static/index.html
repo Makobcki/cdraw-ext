@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta charset="utf-8" />
+<title>AI Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css?v=3" />
+</head>
+<body>
+  <div id="layout">
+    <div id="topControls">
+      <button id="toggleSidebarBtn" title="Меню">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+      </button>
+      <button id="newChatBtn" title="Новый чат">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14m-7-7h14"/></svg>
+      </button>
+    </div>
+
+    <div id="sidebarOverlay" style="display:none;"></div>
+    <div id="sidebar" class="overlay-sidebar" style="transform: translateX(-100%);">
+      <div id="sidebarHeader">
+        <span class="sidebar-title">AI Agent</span>
+        <div class="sidebar-header-actions">
+          <button id="sidebarNewChatBtn" title="Создать чат">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          <button id="closeSidebarBtn" title="Закрыть">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="sidebar-divider"></div>
+      <div id="chatList"></div>
+      
+      <div id="sidebarFooter">
+        <div class="dropdown-container">
+          <button id="accountBtn">Аккаунты</button>
+          <div id="accountDropdown" style="display:none;"></div>
+        </div>
+        <button id="updateModalBtn" class="footer-btn" title="Автообновление">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+          </svg>
+          <span id="versionLabel">v1.0.0</span>
+          <span id="updateBadge" class="update-badge" style="display:none;">NEW</span>
+        </button>
+      </div>
+    </div>
+    
+    <div id="app">
+      <div id="updateBanner" class="update-banner" style="display:none;">
+        <span id="updateBannerText">Доступно обновление AI Agent!</span>
+        <button id="updateBannerBtn" class="update-banner-action">Подробнее</button>
+        <button id="updateBannerClose" class="update-banner-close">✕</button>
+      </div>
+      <div id="topFadeOverlay" style="opacity: 0; pointer-events: none;"></div>
+      <div id="messages">
+        <div id="messagesInner">
+          <div id="splashScreen">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M12 16v-4"></path>
+              <path d="M12 8h.01"></path>
+            </svg>
+            <div class="splash-title">AI Assistant</div>
+            <div class="splash-desc">Чем я могу помочь вам сегодня?</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="attachTray"></div>
+
+      <div id="inputBarContainer">
+        <textarea id="inputText" rows="1" placeholder="Спросите что-нибудь или дайте команду..."></textarea>
+        <div id="inputControls">
+          <div class="input-controls-left">
+            <button id="attachBtn" title="Прикрепить выделенный объект">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M12 5v14m-7-7h14"/>
+              </svg>
+            </button>
+            <div id="modelSelectWrapper" class="model-select-wrapper model-dropdown">
+              <div id="modelSelectCurrent" class="model-dropdown-selected">Загрузка...</div>
+              <ul id="modelSelectList" class="model-dropdown-list"></ul>
+            </div>
+          </div>
+          <div class="input-controls-right">
+            <button id="stopBtn" title="Остановить генерацию" style="display:none;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"></rect></svg>
+            </button>
+            <button id="sendBtn" title="Отправить">
+              <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor">
+                <path d="M440-160v-487L216-423l-56-57 320-320 320 320-56 57-224-224v487h-80Z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="updaterModal">
+    <div class="updater-modal-header">
+      <h3>Автообновление приложения</h3>
+      <button id="closeUpdaterModalBtn" type="button" class="close-modal-btn">✕</button>
+    </div>
+    <div class="updater-modal-body">
+      <div class="updater-info-card">
+        <div class="version-row">
+          <span class="version-title">Текущая версия:</span>
+          <span id="currentVersionVal" class="version-tag">v1.0.0</span>
+        </div>
+        <div class="version-row">
+          <span class="version-title">Статус:</span>
+          <span id="updateStatusText" class="status-tag">Проверка не проводилась</span>
+        </div>
+      </div>
+
+      <div id="updateDetailsBox" style="display:none;" class="update-details-box">
+        <div class="update-new-header">
+          <strong>Доступна новая версия: <span id="latestVersionVal">v1.1.0</span></strong>
+        </div>
+        <div class="release-notes-container">
+          <div class="release-notes-title">Что нового:</div>
+          <div id="releaseNotesText" class="release-notes-content"></div>
+        </div>
+        <div class="update-actions">
+          <button id="applyUpdateBtn" class="btn-primary">Загрузить и установить обновление</button>
+        </div>
+      </div>
+
+      <div class="updater-settings-section">
+        <label class="checkbox-label">
+          <input type="checkbox" id="autoCheckCheckbox" checked />
+          Автоматически проверять обновления при запуске
+        </label>
+      </div>
+
+      <div class="updater-buttons">
+        <button id="checkUpdateBtn" class="btn-secondary">Проверить обновления</button>
+        <button id="testUpdateBtn" class="btn-secondary" title="Тестовая проверка на новую версию v1.1.0">Тест v1.1.0</button>
+        <button id="rollbackBtn" class="btn-danger-link" style="display:none;">Откатить к бэкапу</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="customModal" closedby="any">
+    <div id="customModalTitle"></div>
+    <div id="customModalBody"></div>
+    <div id="customModalInputContainer" style="display:none;">
+      <input type="text" id="customModalInput" />
+    </div>
+    <div id="customModalFooter">
+      <form method="dialog">
+        <button type="button" id="customModalCancel" value="cancel">Отмена</button>
+        <button type="button" id="customModalOk" value="ok">ОК</button>
+      </form>
+    </div>
+  </dialog>
+
+  <script src="/static/app.js?v=3"></script>
+</body>
+</html>
