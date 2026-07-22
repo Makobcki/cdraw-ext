@@ -1,12 +1,13 @@
 import asyncio
 import base64
 import json
+import mimetypes
 import os
+import sys
 import threading
 import uuid
-import updater
 
-from anti_client import Client, Message, Tool, ToolCall, FileAttachment
+from anti_client import Client, Message, FileAttachment
 from flask import (
     Flask,
     Response,
@@ -16,32 +17,68 @@ from flask import (
     stream_with_context,
 )
 
-# ---------------------------------------------------------------------
-# Конфигурация
-# ---------------------------------------------------------------------
-
-AI_MODEL = os.environ.get("AI_MODEL", "gemini-2.5-pro")
-HIDDEN_MODELS_FILE = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "hidden_models.json"
+import updater
+from auth_manager import (
+    get_current_client,
+    load_accounts,
+    save_accounts,
+    load_oauth_config,
+    save_oauth_config,
 )
+from chat_manager import (
+    load_chats,
+    save_chats,
+    serialize_message,
+)
+from config import (
+    AI_MODEL,
+    CHATS_FILE,
+    HIDDEN_MODELS_FILE,
+    MULTI_ACCOUNTS_FILE,
+    OAUTH_CONFIG_FILE,
+    SHARED_TEMP_DIR,
+    STATIC_DIR,
+    SYSTEM_PROMPT,
+    atomic_write_json,
+    read_json_locked,
+)
+from tools import TOOLS
+
+
+def fix_browser_emulation():
+    if sys.platform != "win32":
+        return
+    try:
+        import winreg
+        key_path = r"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION"
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as key:
+            winreg.SetValueEx(key, "CorelDRW.exe", 0, winreg.REG_DWORD, 11001)
+    except Exception as e:
+        print("Registry fix error:", e)
+
+
+fix_browser_emulation()
+
+app = Flask(__name__, static_folder=None)
+
+client = get_current_client()
+CHATS, CURRENT_CHAT_ID = load_chats()
+_cached_models = None
+
+
+def persist_chats():
+    save_chats(CHATS, CURRENT_CHAT_ID)
 
 
 def load_hidden_models():
-    if os.path.exists(HIDDEN_MODELS_FILE):
-        try:
-            with open(HIDDEN_MODELS_FILE, "r", encoding="utf-8") as f:
-                return set(json.load(f))
-        except:
-            pass
+    data = read_json_locked(HIDDEN_MODELS_FILE, default_factory=list)
+    if isinstance(data, list):
+        return set(data)
     return set()
 
 
 def save_hidden_models(hidden_set):
-    with open(HIDDEN_MODELS_FILE, "w", encoding="utf-8") as f:
-        json.dump(list(hidden_set), f)
-
-
-_cached_models = None
+    atomic_write_json(HIDDEN_MODELS_FILE, list(hidden_set))
 
 
 def get_all_models(bypass_cache=False):
@@ -49,10 +86,13 @@ def get_all_models(bypass_cache=False):
     if not bypass_cache and _cached_models is not None:
         return _cached_models
     try:
-        client = Client()
+        c = Client()
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        models = loop.run_until_complete(client.models.list())
+        try:
+            models = loop.run_until_complete(c.models.list())
+        finally:
+            loop.close()
         parsed = []
         for m in models:
             quota_pct = None
@@ -82,275 +122,6 @@ def get_all_models(bypass_cache=False):
         return [{"id": AI_MODEL, "display_name": AI_MODEL, "quota_pct": None}]
 
 
-SHARED_TEMP_DIR = os.environ.get(
-    "CDR_AGENT_TEMP", os.path.join(os.environ.get("TEMP", "C:\\Temp"), "cdr_ai_agent")
-)
-os.makedirs(SHARED_TEMP_DIR, exist_ok=True)
-
-STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
-MULTI_ACCOUNTS_FILE = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "multi_accounts.json"
-)
-OAUTH_CONFIG_FILE = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "oauth_config.json"
-)
-
-app = Flask(__name__, static_folder=None)
-
-
-def load_oauth_config():
-    if os.path.exists(OAUTH_CONFIG_FILE):
-        try:
-            with open(OAUTH_CONFIG_FILE, "r", encoding="utf-8") as f:
-                content = f.read().strip()
-                if content:
-                    data = json.loads(content)
-                    if isinstance(data, dict):
-                        return data
-        except Exception as e:
-            print("Error loading oauth_config.json:", e)
-    return {}
-
-
-def save_oauth_config(data):
-    with open(OAUTH_CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f)
-
-
-def load_accounts():
-    default_data = {"accounts": [], "current_index": -1}
-    if os.path.exists(MULTI_ACCOUNTS_FILE):
-        try:
-            with open(MULTI_ACCOUNTS_FILE, "r", encoding="utf-8") as f:
-                content = f.read().strip()
-                if not content:
-                    return default_data
-                data = json.loads(content)
-                if isinstance(data, dict):
-                    if "accounts" not in data or not isinstance(data.get("accounts"), list):
-                        data["accounts"] = []
-                    if "current_index" not in data or not isinstance(data.get("current_index"), int):
-                        data["current_index"] = -1
-                    return data
-        except Exception as e:
-            print("Error loading multi_accounts.json:", e)
-    return default_data
-
-
-def save_accounts(data):
-    with open(MULTI_ACCOUNTS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False)
-
-
-def get_current_client():
-    data = load_accounts()
-    idx = data.get("current_index", -1)
-    if 0 <= idx < len(data["accounts"]):
-        acc = data["accounts"][idx]
-        
-        # Sync the active account to the global accounts.json for anti_client
-        data_dir = os.environ.get("ANTI_API_DATA_DIR")
-        if not data_dir:
-            home = os.environ.get("HOME") or os.environ.get("USERPROFILE") or os.path.expanduser("~")
-            data_dir = os.path.join(home, ".anti-api")
-        acc_file = os.path.join(data_dir, "accounts.json")
-        os.makedirs(data_dir, exist_ok=True)
-        try:
-            with open(acc_file, "w", encoding="utf-8") as f:
-                json.dump({"accounts": [acc]}, f)
-        except Exception:
-            pass
-
-        try:
-            # Client() will now read the correctly synced account from ~/.anti-api/accounts.json
-            return Client()
-        except Exception:
-            pass
-    try:
-        return Client()
-    except Exception:
-        return None
-
-
-client = get_current_client()
-
-SYSTEM_PROMPT = (
-    "Ты — ассистент по дизайну, встроенный в CorelDRAW 2018. "
-    "Пользователь может прикрепить к сообщению выделенный объект — ты получишь "
-    "его превью (картинку), структурированные свойства (тип, размер, "
-    "позиция, цвета) и, если доступно, исходные SVG-данные контура. "
-    "Ты можешь не только советовать, но и вносить изменения в документ через "
-    "вызов инструментов (tools) — они выполняются немедленно в реальном "
-    "документе пользователя. После успешного вызова инструмента коротко "
-    "поясняй, что именно изменилось. Перед разрушительными действиями "
-    "(удаление, массовые правки) кратко уточняй, что собираешься сделать."
-)
-
-# ---------------------------------------------------------------------
-# Схема инструментов (anti_client Tool objects)
-# ---------------------------------------------------------------------
-
-TOOLS = [
-    Tool(
-        name="set_fill_color",
-        description="Задать сплошную заливку объекта.",
-        parameters={
-            "type": "object",
-            "properties": {
-                "ref": {"type": "string", "description": "Идентификатор объекта"},
-                "hex_color": {
-                    "type": "string",
-                    "description": "Цвет в формате #RRGGBB",
-                },
-            },
-            "required": ["ref", "hex_color"],
-        },
-    ),
-    Tool(
-        name="set_position",
-        description="Переместить объект в абсолютные координаты страницы.",
-        parameters={
-            "type": "object",
-            "properties": {
-                "ref": {"type": "string"},
-                "x": {"type": "number"},
-                "y": {"type": "number"},
-            },
-            "required": ["ref", "x", "y"],
-        },
-    ),
-    Tool(
-        name="set_size",
-        description="Задать ширину и высоту объекта.",
-        parameters={
-            "type": "object",
-            "properties": {
-                "ref": {"type": "string"},
-                "width": {"type": "number"},
-                "height": {"type": "number"},
-            },
-            "required": ["ref", "width", "height"],
-        },
-    ),
-    Tool(
-        name="rotate",
-        description="Повернуть объект на заданный угол в градусах.",
-        parameters={
-            "type": "object",
-            "properties": {
-                "ref": {"type": "string"},
-                "angle": {"type": "number"},
-            },
-            "required": ["ref", "angle"],
-        },
-    ),
-    Tool(
-        name="duplicate",
-        description="Продублировать объект. Возвращает ref новой копии.",
-        parameters={
-            "type": "object",
-            "properties": {"ref": {"type": "string"}},
-            "required": ["ref"],
-        },
-    ),
-    Tool(
-        name="delete_shape",
-        description="Удалить объект из документа.",
-        parameters={
-            "type": "object",
-            "properties": {"ref": {"type": "string"}},
-            "required": ["ref"],
-        },
-    ),
-    Tool(
-        name="convert_to_curves",
-        description="Преобразовать объект в кривые перед точечным редактированием контура.",
-        parameters={
-            "type": "object",
-            "properties": {"ref": {"type": "string"}},
-            "required": ["ref"],
-        },
-    ),
-    Tool(
-        name="order",
-        description="Изменить порядок наложения объекта.",
-        parameters={
-            "type": "object",
-            "properties": {
-                "ref": {"type": "string"},
-                "mode": {
-                    "type": "string",
-                    "enum": ["front", "back", "forward", "backward"],
-                },
-            },
-            "required": ["ref", "mode"],
-        },
-    ),
-    Tool(
-        name="export_svg",
-        description="Получить актуальные векторные SVG-данные объекта.",
-        parameters={
-            "type": "object",
-            "properties": {"ref": {"type": "string"}},
-            "required": ["ref"],
-        },
-    ),
-    Tool(
-        name="import_svg",
-        description="Создать новый объект из SVG-разметки.",
-        parameters={
-            "type": "object",
-            "properties": {
-                "svg": {"type": "string", "description": "Полная SVG-разметка"},
-                "x": {"type": "number"},
-                "y": {"type": "number"},
-            },
-            "required": ["svg"],
-        },
-    ),
-    Tool(
-        name="trace_bitmap",
-        description=(
-            "Трассировать (векторизовать) растровое изображение — PowerTRACE. "
-            "Результат появляется поверх оригинала и возвращается как new_refs; "
-            "исходный битмап по умолчанию не удаляется."
-        ),
-        parameters={
-            "type": "object",
-            "properties": {
-                "ref": {
-                    "type": "string",
-                    "description": "Идентификатор растрового объекта",
-                },
-                "style": {
-                    "type": "string",
-                    "enum": [
-                        "line_art",
-                        "logo",
-                        "detailed_logo",
-                        "clipart",
-                        "low_quality_image",
-                        "high_quality_image",
-                        "technical",
-                        "line_drawing",
-                    ],
-                    "description": "Пресет трассировки (соответствует стилям PowerTRACE)",
-                },
-            },
-            "required": ["ref", "style"],
-        },
-    ),
-    Tool(
-        name="get_page_info",
-        description="Узнать размер текущей страницы/листа — для расчёта эффективного размещения объектов.",
-        parameters={"type": "object", "properties": {}, "required": []},
-    ),
-]
-
-CHATS = {"default": {"title": "Новый чат", "messages": []}}
-CURRENT_CHAT_ID = "default"
-
-
 def stream_agent_loop():
     yield (" " * 2048 + "\n").encode("utf-8")
     if client is None:
@@ -370,6 +141,7 @@ def stream_agent_loop():
     messages = [Message(role="system", content=SYSTEM_PROMPT)] + chat_messages
 
     loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
     async def get_stream():
         return await client.generate(
@@ -377,63 +149,64 @@ def stream_agent_loop():
         )
 
     try:
-        gen = loop.run_until_complete(get_stream())
-    except Exception as e:
-        yield (json.dumps({"type": "error", "error": str(e)}, ensure_ascii=False) + "\n").encode("utf-8")
-        loop.close()
-        return
-
-    full_text = ""
-    has_tools = False
-
-    while True:
         try:
-            chunk = loop.run_until_complete(gen.__anext__())
-            if isinstance(chunk, str):
-                full_text += chunk
-                yield (
-                    json.dumps({"type": "chunk", "text": chunk}, ensure_ascii=False)
-                    + "\n"
-                ).encode("utf-8")
-            elif isinstance(chunk, list):  # list of ToolCall
-                has_tools = True
-                calls = [
-                    {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
-                    for tc in chunk
-                ]
-                if CURRENT_CHAT_ID in CHATS:
-                    CHATS[CURRENT_CHAT_ID]["messages"].append(
-                        Message(
-                            role="assistant",
-                            content=full_text if full_text else None,
-                            tool_calls=chunk,
-                        )
-                    )
-                yield (
-                    json.dumps(
-                        {"type": "tool_calls", "calls": calls}, ensure_ascii=False
-                    )
-                    + "\n"
-                ).encode("utf-8")
-        except StopAsyncIteration:
-            break
+            gen = loop.run_until_complete(get_stream())
         except Exception as e:
-            yield (
-                json.dumps({"type": "error", "error": str(e)}, ensure_ascii=False)
-                + "\n"
-            ).encode("utf-8")
-            break
+            yield (json.dumps({"type": "error", "error": str(e)}, ensure_ascii=False) + "\n").encode("utf-8")
+            return
 
-    if not has_tools and full_text:
-        if CURRENT_CHAT_ID in CHATS:
-            CHATS[CURRENT_CHAT_ID]["messages"].append(
-                Message(role="assistant", content=full_text)
-            )
+        full_text = ""
+        has_tools = False
 
-    # Send a done marker in case the frontend needs it, though the connection closes anyway
-    yield (json.dumps({"type": "done"}, ensure_ascii=False) + "\n").encode("utf-8")
+        while True:
+            try:
+                chunk = loop.run_until_complete(gen.__anext__())
+                if isinstance(chunk, str):
+                    full_text += chunk
+                    yield (
+                        json.dumps({"type": "chunk", "text": chunk}, ensure_ascii=False)
+                        + "\n"
+                    ).encode("utf-8")
+                elif isinstance(chunk, list):  # list of ToolCall
+                    has_tools = True
+                    calls = [
+                        {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
+                        for tc in chunk
+                    ]
+                    if CURRENT_CHAT_ID in CHATS:
+                        CHATS[CURRENT_CHAT_ID]["messages"].append(
+                            Message(
+                                role="assistant",
+                                content=full_text if full_text else None,
+                                tool_calls=chunk,
+                            )
+                        )
+                        persist_chats()
+                    yield (
+                        json.dumps(
+                            {"type": "tool_calls", "calls": calls}, ensure_ascii=False
+                        )
+                        + "\n"
+                    ).encode("utf-8")
+            except StopAsyncIteration:
+                break
+            except Exception as e:
+                yield (
+                    json.dumps({"type": "error", "error": str(e)}, ensure_ascii=False)
+                    + "\n"
+                ).encode("utf-8")
+                break
 
-    loop.close()
+        if not has_tools and full_text:
+            if CURRENT_CHAT_ID in CHATS:
+                CHATS[CURRENT_CHAT_ID]["messages"].append(
+                    Message(role="assistant", content=full_text)
+                )
+                persist_chats()
+
+        yield (json.dumps({"type": "done"}, ensure_ascii=False) + "\n").encode("utf-8")
+    finally:
+        loop.close()
 
 
 # ---------------------------------------------------------------------
@@ -486,29 +259,41 @@ def updater_settings():
     return jsonify(info)
 
 
+update_lock = threading.Lock()
+
+
 @app.route("/updater/apply", methods=["POST"])
 def updater_apply():
-    data = request.get_json(silent=True) or {}
-    target_version = data.get("target_version")
-    source_path = data.get("source_path")
-    do_restart = data.get("restart", True)
-    res = updater.apply_update(source_path=source_path, target_version=target_version)
-    if res.get("status") == "success" and do_restart:
-        updater.schedule_restart(delay=1.0)
-    return jsonify(res)
+    if not update_lock.acquire(blocking=False):
+        return jsonify({"status": "error", "message": "Обновление уже выполняется"}), 423
+    try:
+        data = request.get_json(silent=True) or {}
+        target_version = data.get("target_version")
+        source_path = data.get("source_path")
+        do_restart = data.get("restart", True)
+        res = updater.apply_update(source_path=source_path, target_version=target_version)
+        if res.get("status") == "success" and do_restart:
+            updater.schedule_restart(delay=1.0)
+        return jsonify(res)
+    finally:
+        update_lock.release()
 
 
 @app.route("/updater/rollback", methods=["POST"])
 def updater_rollback():
-    data = request.get_json(silent=True) or {}
-    do_restart = data.get("restart", True)
+    if not update_lock.acquire(blocking=False):
+        return jsonify({"status": "error", "message": "Операция уже выполняется"}), 423
     try:
+        data = request.get_json(silent=True) or {}
+        do_restart = data.get("restart", True)
         res = updater.rollback_update()
         if res.get("status") == "success" and do_restart:
             updater.schedule_restart(delay=1.0)
         return jsonify(res)
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
+    finally:
+        update_lock.release()
 
 
 @app.route("/settings/model", methods=["GET", "POST", "DELETE"])
@@ -563,7 +348,7 @@ def reset_models():
     if os.path.exists(HIDDEN_MODELS_FILE):
         try:
             os.remove(HIDDEN_MODELS_FILE)
-        except:
+        except Exception:
             pass
     _cached_models = None
     all_models = get_all_models(bypass_cache=True)
@@ -607,8 +392,6 @@ def auth_status():
 
 @app.route("/auth/login", methods=["POST"])
 def auth_login():
-    import anti_client.client
-
     def do_login():
         import subprocess
         import sys
@@ -704,6 +487,7 @@ def new_chat():
     new_id = uuid.uuid4().hex
     CHATS[new_id] = {"title": "Новый чат", "messages": []}
     CURRENT_CHAT_ID = new_id
+    persist_chats()
     return jsonify({"id": new_id})
 
 
@@ -713,6 +497,7 @@ def switch_chat():
     chat_id = request.json.get("id")
     if chat_id in CHATS:
         CURRENT_CHAT_ID = chat_id
+        persist_chats()
         return jsonify({"status": "ok"})
     return jsonify({"error": "Chat not found"}), 404
 
@@ -728,6 +513,7 @@ def delete_chat():
             if not CURRENT_CHAT_ID:
                 CURRENT_CHAT_ID = "default"
                 CHATS["default"] = {"title": "Новый чат", "messages": []}
+        persist_chats()
         return jsonify({"status": "ok"})
     return jsonify({"error": "Chat not found"}), 404
 
@@ -738,6 +524,7 @@ def rename_chat():
     new_title = request.json.get("title")
     if chat_id in CHATS and new_title:
         CHATS[chat_id]["title"] = new_title
+        persist_chats()
         return jsonify({"status": "ok"})
     return jsonify({"error": "Chat not found"}), 404
 
@@ -747,29 +534,7 @@ def get_history():
     if CURRENT_CHAT_ID not in CHATS:
         return jsonify({"messages": []})
 
-    msgs = []
-    for m in CHATS[CURRENT_CHAT_ID]["messages"]:
-        # m is a anti_client.Message object
-        md = getattr(m, "model_dump", getattr(m, "dict", lambda: {}))()
-
-        # Pydantic v1 vs v2 compatibility: some use 'model_dump', some 'dict'
-        # Or we can just build it manually
-        m_dict = {
-            "role": m.role,
-            "content": getattr(m, "_raw_content", m.content) if m.role == "user" else m.content,
-        }
-        if hasattr(m, "_attachments"):
-            m_dict["attachments"] = m._attachments
-        if m.tool_calls:
-            m_dict["tool_calls"] = [
-                {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
-                for tc in m.tool_calls
-            ]
-        if getattr(m, "tool_call_id", None):
-            m_dict["tool_call_id"] = m.tool_call_id
-
-        msgs.append(m_dict)
-
+    msgs = [serialize_message(m) for m in CHATS[CURRENT_CHAT_ID]["messages"]]
     return jsonify({"messages": msgs})
 
 
@@ -811,15 +576,15 @@ def upload_attachment():
     file = request.files["file"]
     if file.filename == "":
         return jsonify({"error": "No selected file"}), 400
-    
+
     token = uuid.uuid4().hex
     ext = os.path.splitext(file.filename)[1]
     if not ext:
         ext = ".png"
-    
+
     path = os.path.join(SHARED_TEMP_DIR, token + ext)
     file.save(path)
-    
+
     return jsonify({
         "png_path": path,
         "name": file.filename or ("pasted_image" + ext)
@@ -836,8 +601,6 @@ def chat():
     if user_text:
         info.append(user_text)
 
-    # Since anti_client Message only supports string content, we format everything as string.
-    # Note: If anti_client updates to support images, we can change this format.
     for a in attachments:
         svg_path = a.get("svg_path")
         svg_text = ""
@@ -860,9 +623,7 @@ def chat():
     final_text = "\n\n".join(info)
     if not final_text:
         final_text = "ping"
-        
-    import base64
-    import mimetypes
+
     model_attachments = []
     for a in attachments:
         png_path = a.get("png_path")
@@ -886,6 +647,7 @@ def chat():
         msg._raw_content = user_text
         msg._attachments = attachments
         CHATS[CURRENT_CHAT_ID]["messages"].append(msg)
+        persist_chats()
 
     resp = Response(
         stream_with_context(stream_agent_loop()),
@@ -916,6 +678,7 @@ def tool_result():
                 content=json.dumps(result, ensure_ascii=False),
             )
         )
+        persist_chats()
 
     resp = Response(
         stream_with_context(stream_agent_loop()),
