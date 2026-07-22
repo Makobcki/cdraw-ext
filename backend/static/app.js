@@ -1998,7 +1998,7 @@
             postJSON("/settings/model", { model: m.id }, function () {});
           };
 
-          // In-place replacement with API model name after 2s hover (IE11 compatible)
+          // In-place replacement with API model name after 1.2s hover (IE11 compatible)
           if (m.display_name && m.display_name !== m.id) {
             (function (targetSpan, originalName, apiName) {
               var hoverTimer = null;
@@ -2006,7 +2006,7 @@
                 if (hoverTimer) clearTimeout(hoverTimer);
                 hoverTimer = setTimeout(function () {
                   targetSpan.innerText = apiName;
-                }, 2000);
+                }, 1200);
               };
               li.onmouseout = function () {
                 if (hoverTimer) {
