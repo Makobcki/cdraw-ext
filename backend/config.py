@@ -3,7 +3,9 @@ import json
 import tempfile
 import threading
 
-AI_MODEL = os.environ.get("AI_MODEL", "gemini-2.5-pro")
+MODEL_BLACKLIST_KEYWORDS = ["chat_", "flash_lite", "2.5 pro", "flash lite"]
+
+AI_MODEL = os.environ.get("AI_MODEL", "gemini-3.1-pro-low")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
