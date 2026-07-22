@@ -14,12 +14,14 @@ from datetime import datetime
 VERSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "version.json")
 BACKUPS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backups")
 
+from config import atomic_write_json, read_json_locked
+
 DEFAULT_VERSION_DATA = {
-    "version": "1.0.0",
+    "version": "1.1.1",
     "auto_check": True,
     "update_url": "https://raw.githubusercontent.com/Makobcki/cdraw-ext/main/backend/version.json",
     "last_checked": None,
-    "latest_version": "1.0.0",
+    "latest_version": "1.1.1",
     "release_notes": "",
     "download_url": "https://github.com/Makobcki/cdraw-ext/archive/refs/heads/main.zip",
     "update_available": False
@@ -38,24 +40,17 @@ PRESERVE_FILES = {
 
 
 def load_version_info():
-    if os.path.exists(VERSION_FILE):
-        try:
-            with open(VERSION_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                merged = dict(DEFAULT_VERSION_DATA)
-                merged.update(data)
-                return merged
-        except Exception as e:
-            print("Error loading version.json:", e)
-    return dict(DEFAULT_VERSION_DATA)
+    data = read_json_locked(VERSION_FILE, default_factory=dict)
+    merged = dict(DEFAULT_VERSION_DATA)
+    merged.update(data)
+    if compare_versions(merged.get("latest_version", "1.1.1"), merged.get("version", "1.1.1")) <= 0:
+        merged["update_available"] = False
+        merged["latest_version"] = merged["version"]
+    return merged
 
 
 def save_version_info(data):
-    try:
-        with open(VERSION_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print("Error saving version.json:", e)
+    atomic_write_json(VERSION_FILE, data)
 
 
 def compare_versions(v1, v2):

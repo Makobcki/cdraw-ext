@@ -2203,7 +2203,19 @@
 
   if (autoCheckCheckbox) {
     autoCheckCheckbox.onchange = function () {
-      postJSON("/updater/settings", { auto_check: autoCheckCheckbox.checked }, function () {});
+      var isChecked = !!autoCheckCheckbox.checked;
+      postJSON(
+        "/updater/settings",
+        { auto_check: isChecked },
+        function (res) {
+          if (res && typeof res.auto_check !== "undefined") {
+            autoCheckCheckbox.checked = !!res.auto_check;
+          }
+        },
+        function (err) {
+          addActionEntry("Ошибка сохранения настроек автообновления: " + (err ? err.message : "ошибка сети"), true);
+        }
+      );
     };
   }
 
