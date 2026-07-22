@@ -1,10 +1,10 @@
 {
-  "version": "1.2.0",
+  "version": "1.0.0",
   "auto_check": true,
   "update_url": "https://raw.githubusercontent.com/Makobcki/cdraw-ext/main/backend/version.json",
   "last_checked": null,
-  "latest_version": "1.2.0",
-  "release_notes": "Версия 1.2.0:\n- Модульная архитектура бэкенда (config, tools, auth_manager, chat_manager).\n- Потокобезопасные блокировки JSON-файлов (atomic filelock) от гонки данных.\n- Новая модель по умолчанию Gemini 3.1 Pro (low) и черный список моделей.\n- Транзакционные группы отмены CorelDRAW (BeginCommandGroup) и авто-рефреш холста.\n- Защита базы чатов и настроек от удаления при автообновлениях.\n- Редизайн плавающего баннера и модального окна автообновления.\n- Оптимизации верстки для IE11 MSHTML (GPU-композиция, динамический парсинг версий).",
+  "latest_version": "1.0.0",
+  "release_notes": "",
   "download_url": "https://github.com/Makobcki/cdraw-ext/archive/refs/heads/main.zip",
   "update_available": false,
   "last_updated": null,

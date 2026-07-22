@@ -1998,6 +1998,26 @@
             postJSON("/settings/model", { model: m.id }, function () {});
           };
 
+          // In-place replacement with API model name after 2s hover (IE11 compatible)
+          if (m.display_name && m.display_name !== m.id) {
+            (function (targetSpan, originalName, apiName) {
+              var hoverTimer = null;
+              li.onmouseover = function () {
+                if (hoverTimer) clearTimeout(hoverTimer);
+                hoverTimer = setTimeout(function () {
+                  targetSpan.innerText = apiName;
+                }, 2000);
+              };
+              li.onmouseout = function () {
+                if (hoverTimer) {
+                  clearTimeout(hoverTimer);
+                  hoverTimer = null;
+                }
+                targetSpan.innerText = originalName;
+              };
+            })(textSpan, m.display_name, m.id);
+          }
+
           var quotaSpan = null;
           if (m.quota_pct !== null && m.quota_pct !== undefined) {
             quotaSpan = el("span", "model-quota", m.quota_pct + "%");
@@ -2163,10 +2183,6 @@
           updateStatusText.innerText = "У вас установлена актуальная версия";
           updateStatusText.style.color = "#888888";
         }
-      }
-
-      if (showNoticeIfNoUpdate && !info.last_check_error) {
-        showCustomModal("Обновления", "У вас установлена последняя версия (v" + info.version + ").");
       }
     }
   }
