@@ -132,12 +132,12 @@ def check_for_updates(force_check_remote=True, mock_version=None):
 def get_venv_python(backend_dir=None):
     r"""
     Returns python executable in .venv directory.
-    Standard path for Windows: ext-dir\.venv\Scripts\pythonw.exe
+    Standard path for Windows: ext-dir\backend\.venv\Scripts\pythonw.exe
     """
     if backend_dir is None:
         backend_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # Check backend directory .venv
+    # Check backend directory .venv (ext-dir\backend\.venv\Scripts\pythonw.exe)
     win_pythonw = os.path.join(backend_dir, ".venv", "Scripts", "pythonw.exe")
     win_python = os.path.join(backend_dir, ".venv", "Scripts", "python.exe")
     posix_python3 = os.path.join(backend_dir, ".venv", "bin", "python3")
