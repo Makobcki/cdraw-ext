@@ -1,13 +1,12 @@
 {
-  "version": "1.0.1",
+  "version": "1.1.0",
   "auto_check": true,
   "update_url": "https://raw.githubusercontent.com/Makobcki/cdraw-ext/main/backend/version.json",
   "last_checked": null,
-  "latest_version": "1.0.1",
-  "release_notes": "",
+  "latest_version": "1.1.0",
+  "release_notes": "Версия 1.1.0:\n- Безопасная группа отмены (Undo Group) для вызовов инструментов и очистка при ошибках.\n- Потокобезопасная работа с локальными JSON базами (atomic filelock).\n- Поддержка единиц измерения документа (doc.Unit).\n- Модульный рефакторинг бэкенда (config, tools, auth_manager, chat_manager).\n- Защита истории чатов и сохраненных аккаунтов при автообновлении.\n- Плавная загрузка и GPU-ускорение верстки для браузерного движка IE11 в CorelDRAW.",
   "download_url": "https://github.com/Makobcki/cdraw-ext/archive/refs/heads/main.zip",
   "update_available": false,
   "last_updated": null,
   "last_backup": null
 }
-
