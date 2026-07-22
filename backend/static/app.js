@@ -2112,6 +2112,19 @@
     };
   }
 
+  function compareSemver(v1, v2) {
+    var p1 = (v1 || "").replace(/^v/, "").split(".");
+    var p2 = (v2 || "").replace(/^v/, "").split(".");
+    var len = Math.max(p1.length, p2.length);
+    for (var i = 0; i < len; i += 1) {
+      var n1 = parseInt(p1[i] || 0, 10);
+      var n2 = parseInt(p2[i] || 0, 10);
+      if (n1 > n2) return 1;
+      if (n1 < n2) return -1;
+    }
+    return 0;
+  }
+
   function updateUpdaterUI(info, showNoticeIfNoUpdate) {
     if (!info) return;
 
@@ -2126,13 +2139,13 @@
       rollbackBtn.style.display = "inline-block";
     }
 
-    if (info.update_available) {
+    var statusRow = byId("statusRow");
+    var isNewerAvailable = !!info.update_available && compareSemver(info.latest_version, info.version) > 0;
+
+    if (isNewerAvailable) {
       if (updateBadge) updateBadge.style.display = "inline-block";
       if (updateBanner) updateBanner.style.display = "flex";
-      if (updateStatusText) {
-        updateStatusText.innerText = "Доступно обновление!";
-        updateStatusText.style.color = "#00ffaa";
-      }
+      if (statusRow) statusRow.style.display = "none";
       if (latestVersionVal) latestVersionVal.innerText = "v" + info.latest_version;
       if (releaseNotesText) releaseNotesText.innerText = info.release_notes || "Улучшения и исправления стабильности.";
       if (updateDetailsBox) updateDetailsBox.style.display = "block";
@@ -2140,6 +2153,7 @@
       if (updateBadge) updateBadge.style.display = "none";
       if (updateBanner) updateBanner.style.display = "none";
       if (updateDetailsBox) updateDetailsBox.style.display = "none";
+      if (statusRow) statusRow.style.display = "flex";
 
       if (updateStatusText) {
         if (info.last_check_error) {
@@ -2184,12 +2198,6 @@
   if (checkUpdateBtn) {
     checkUpdateBtn.onclick = function () {
       runCheckForUpdates(true);
-    };
-  }
-
-  if (testUpdateBtn) {
-    testUpdateBtn.onclick = function () {
-      runCheckForUpdates(true, "1.1.0");
     };
   }
 
