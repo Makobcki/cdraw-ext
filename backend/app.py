@@ -100,8 +100,15 @@ app = Flask(__name__, static_folder=None)
 
 def load_oauth_config():
     if os.path.exists(OAUTH_CONFIG_FILE):
-        with open(OAUTH_CONFIG_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with open(OAUTH_CONFIG_FILE, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+                if content:
+                    data = json.loads(content)
+                    if isinstance(data, dict):
+                        return data
+        except Exception as e:
+            print("Error loading oauth_config.json:", e)
     return {}
 
 
@@ -111,10 +118,23 @@ def save_oauth_config(data):
 
 
 def load_accounts():
+    default_data = {"accounts": [], "current_index": -1}
     if os.path.exists(MULTI_ACCOUNTS_FILE):
-        with open(MULTI_ACCOUNTS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"accounts": [], "current_index": -1}
+        try:
+            with open(MULTI_ACCOUNTS_FILE, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+                if not content:
+                    return default_data
+                data = json.loads(content)
+                if isinstance(data, dict):
+                    if "accounts" not in data or not isinstance(data.get("accounts"), list):
+                        data["accounts"] = []
+                    if "current_index" not in data or not isinstance(data.get("current_index"), int):
+                        data["current_index"] = -1
+                    return data
+        except Exception as e:
+            print("Error loading multi_accounts.json:", e)
+    return default_data
 
 
 def save_accounts(data):
