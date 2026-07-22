@@ -16,16 +16,27 @@ BACKUPS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backups"
 
 from config import atomic_write_json, read_json_locked
 
-DEFAULT_VERSION_DATA = {
-    "version": "1.1.1",
-    "auto_check": True,
-    "update_url": "https://raw.githubusercontent.com/Makobcki/cdraw-ext/main/backend/version.json",
-    "last_checked": None,
-    "latest_version": "1.1.1",
-    "release_notes": "",
-    "download_url": "https://github.com/Makobcki/cdraw-ext/archive/refs/heads/main.zip",
-    "update_available": False
-}
+
+def get_installed_version():
+    data = read_json_locked(VERSION_FILE, default_factory=dict)
+    if isinstance(data, dict) and data.get("version"):
+        return str(data["version"]).strip()
+    return "1.0.0"
+
+
+def get_default_version_data():
+    curr_ver = get_installed_version()
+    return {
+        "version": curr_ver,
+        "auto_check": True,
+        "update_url": "https://raw.githubusercontent.com/Makobcki/cdraw-ext/main/backend/version.json",
+        "last_checked": None,
+        "latest_version": curr_ver,
+        "release_notes": "",
+        "download_url": "https://github.com/Makobcki/cdraw-ext/archive/refs/heads/main.zip",
+        "update_available": False
+    }
+
 
 PRESERVE_FILES = {
     ".venv",
@@ -41,11 +52,17 @@ PRESERVE_FILES = {
 
 def load_version_info():
     data = read_json_locked(VERSION_FILE, default_factory=dict)
-    merged = dict(DEFAULT_VERSION_DATA)
+    default_data = get_default_version_data()
+    curr_ver = data.get("version") or default_data["version"]
+
+    merged = dict(default_data)
     merged.update(data)
-    if compare_versions(merged.get("latest_version", "1.1.1"), merged.get("version", "1.1.1")) <= 0:
+    merged["version"] = curr_ver
+
+    if compare_versions(merged.get("latest_version", curr_ver), curr_ver) <= 0:
         merged["update_available"] = False
-        merged["latest_version"] = merged["version"]
+        merged["latest_version"] = curr_ver
+
     return merged
 
 
@@ -79,7 +96,8 @@ def compare_versions(v1, v2):
 
 def check_for_updates(force_check_remote=True, mock_version=None):
     info = load_version_info()
-    update_url = info.get("update_url") or DEFAULT_VERSION_DATA["update_url"]
+    default_data = get_default_version_data()
+    update_url = info.get("update_url") or default_data["update_url"]
     now_str = datetime.now().isoformat()
     info["last_checked"] = now_str
     info.pop("last_check_error", None)
@@ -92,7 +110,7 @@ def check_for_updates(force_check_remote=True, mock_version=None):
             info["latest_version"] = latest
             info["release_notes"] = notes
             if not info.get("download_url"):
-                info["download_url"] = DEFAULT_VERSION_DATA["download_url"]
+                info["download_url"] = default_data["download_url"]
         else:
             info["update_available"] = False
             info["latest_version"] = info["version"]
@@ -113,7 +131,7 @@ def check_for_updates(force_check_remote=True, mock_version=None):
                     "release_notes", "Доступна новая версия программы."
                 )
                 info["download_url"] = remote_data.get(
-                    "download_url", DEFAULT_VERSION_DATA["download_url"]
+                    "download_url", default_data["download_url"]
                 )
             else:
                 info["update_available"] = False
@@ -291,7 +309,7 @@ def apply_update(source_path=None, target_version=None):
                 source_backend = find_backend_dir(source_path)
         else:
             # Download from GitHub
-            download_url = info.get("download_url") or DEFAULT_VERSION_DATA["download_url"]
+            download_url = info.get("download_url") or get_default_version_data()["download_url"]
             zip_dest = os.path.join(temp_dir, "update.zip")
             try:
                 download_update_archive(download_url, zip_dest)
