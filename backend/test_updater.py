@@ -122,5 +122,37 @@ class TestAutoUpdater(unittest.TestCase):
             if os.path.exists(dummy_path):
                 os.remove(dummy_path)
 
+    def test_09_multi_accounts_resilience(self):
+        from app import load_accounts, MULTI_ACCOUNTS_FILE
+        backup_acc = None
+        if os.path.exists(MULTI_ACCOUNTS_FILE):
+            with open(MULTI_ACCOUNTS_FILE, "r", encoding="utf-8") as f:
+                backup_acc = f.read()
+
+        try:
+            # 1. Missing file
+            if os.path.exists(MULTI_ACCOUNTS_FILE):
+                os.remove(MULTI_ACCOUNTS_FILE)
+            acc_data = load_accounts()
+            self.assertEqual(acc_data, {"accounts": [], "current_index": -1})
+
+            # 2. Empty file (0 bytes)
+            with open(MULTI_ACCOUNTS_FILE, "w", encoding="utf-8") as f:
+                f.write("")
+            acc_data = load_accounts()
+            self.assertEqual(acc_data, {"accounts": [], "current_index": -1})
+
+            # 3. Invalid JSON
+            with open(MULTI_ACCOUNTS_FILE, "w", encoding="utf-8") as f:
+                f.write("invalid json content")
+            acc_data = load_accounts()
+            self.assertEqual(acc_data, {"accounts": [], "current_index": -1})
+        finally:
+            if backup_acc is not None:
+                with open(MULTI_ACCOUNTS_FILE, "w", encoding="utf-8") as f:
+                    f.write(backup_acc)
+            elif os.path.exists(MULTI_ACCOUNTS_FILE):
+                os.remove(MULTI_ACCOUNTS_FILE)
+
 if __name__ == "__main__":
     unittest.main()
