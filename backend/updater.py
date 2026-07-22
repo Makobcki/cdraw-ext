@@ -31,7 +31,9 @@ PRESERVE_FILES = {
     "oauth_config.json",
     "multi_accounts.json",
     ".env",
-    "version.json"
+    "version.json",
+    "chats.json",
+    "hidden_models.json",
 }
 
 
@@ -321,7 +323,20 @@ def apply_update(source_path=None, target_version=None):
         if not new_ver:
             new_ver = "1.1.0"
 
-        # 3. Replace non-vba files (preserving .venv, backups, user settings)
+        # 3. Clean up orphaned non-preserved files/directories in backend_dir first
+        for item in os.listdir(backend_dir):
+            if item in PRESERVE_FILES:
+                continue
+            item_path = os.path.join(backend_dir, item)
+            try:
+                if os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+                else:
+                    os.remove(item_path)
+            except Exception as e:
+                print(f"Cleanup error for {item}:", e)
+
+        # 4. Copy items from source_backend to backend_dir
         for item in os.listdir(source_backend):
             if item in PRESERVE_FILES:
                 continue
@@ -329,16 +344,14 @@ def apply_update(source_path=None, target_version=None):
             dst_item = os.path.join(backend_dir, item)
 
             if os.path.isdir(src_item):
-                if os.path.exists(dst_item):
-                    shutil.rmtree(dst_item)
                 shutil.copytree(src_item, dst_item)
             else:
                 shutil.copy2(src_item, dst_item)
 
-    # 4. Run pip install -r requirements.txt
+    # 5. Run pip install -r requirements.txt
     pip_res = run_pip_install(backend_dir)
 
-    # 5. Update version.json info
+    # 6. Update version.json info
     info["version"] = new_ver
     info["update_available"] = False
     info["latest_version"] = new_ver
@@ -376,6 +389,19 @@ def rollback_update():
 
     backend_dir = os.path.dirname(os.path.abspath(__file__))
 
+    # Clean up orphaned non-preserved files in backend_dir first
+    for item in os.listdir(backend_dir):
+        if item in PRESERVE_FILES:
+            continue
+        item_path = os.path.join(backend_dir, item)
+        try:
+            if os.path.isdir(item_path):
+                shutil.rmtree(item_path)
+            else:
+                os.remove(item_path)
+        except Exception as e:
+            print(f"Cleanup error for {item}:", e)
+
     for item in os.listdir(last_backup):
         if item in PRESERVE_FILES:
             continue
@@ -383,8 +409,6 @@ def rollback_update():
         dst_item = os.path.join(backend_dir, item)
 
         if os.path.isdir(src_item):
-            if os.path.exists(dst_item):
-                shutil.rmtree(dst_item)
             shutil.copytree(src_item, dst_item)
         else:
             shutil.copy2(src_item, dst_item)
