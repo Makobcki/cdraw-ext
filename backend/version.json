@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "auto_check": true,
+  "update_url": "https://raw.githubusercontent.com/Makobcki/cdraw-ext/main/backend/version.json",
+  "last_checked": "2026-07-23T01:04:28.093951",
+  "latest_version": "1.0.0",
+  "release_notes": "",
+  "download_url": "https://github.com/Makobcki/cdraw-ext/archive/refs/heads/main.zip",
+  "update_available": false,
+  "last_updated": null,
+  "last_backup": null,
+  "last_check_error": "Не удалось подключиться к серверу обновлений: HTTP Error 404: Not Found"
+}
