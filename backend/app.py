@@ -85,6 +85,15 @@ def save_hidden_models(hidden_set):
 def is_blacklisted_model(model_id, display_name=""):
     mid = str(model_id).lower()
     dname = str(display_name).lower()
+
+    # Exclude models with "image" in display_name
+    if "image" in dname:
+        return True
+
+    # Exclude models with "agent" in API model name
+    if "agent" in mid:
+        return True
+
     for kw in MODEL_BLACKLIST_KEYWORDS:
         kw_lower = kw.lower()
         if kw_lower in mid or kw_lower in dname:
