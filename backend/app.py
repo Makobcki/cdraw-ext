@@ -34,6 +34,7 @@ from config import (
     AI_MODEL,
     CHATS_FILE,
     HIDDEN_MODELS_FILE,
+    MODEL_BLACKLIST_KEYWORDS,
     MULTI_ACCOUNTS_FILE,
     OAUTH_CONFIG_FILE,
     SHARED_TEMP_DIR,
@@ -81,6 +82,22 @@ def save_hidden_models(hidden_set):
     atomic_write_json(HIDDEN_MODELS_FILE, list(hidden_set))
 
 
+def is_blacklisted_model(model_id, display_name=""):
+    mid = str(model_id).lower()
+    dname = str(display_name).lower()
+    for kw in MODEL_BLACKLIST_KEYWORDS:
+        kw_lower = kw.lower()
+        if kw_lower in mid or kw_lower in dname:
+            return True
+        kw_dash = kw_lower.replace(" ", "-")
+        kw_underscore = kw_lower.replace(" ", "_")
+        if kw_dash in mid or kw_dash in dname:
+            return True
+        if kw_underscore in mid or kw_underscore in dname:
+            return True
+    return False
+
+
 def get_all_models(bypass_cache=False):
     global _cached_models
     if not bypass_cache and _cached_models is not None:
@@ -93,8 +110,19 @@ def get_all_models(bypass_cache=False):
             models = loop.run_until_complete(c.models.list())
         finally:
             loop.close()
+
+        seen_ids = set()
         parsed = []
         for m in models:
+            m_id = str(m.id).strip()
+            dname = str(m.display_name).strip() if m.display_name else m_id
+            if m_id in seen_ids:
+                continue
+            if is_blacklisted_model(m_id, dname):
+                continue
+
+            seen_ids.add(m_id)
+
             quota_pct = None
             q = getattr(m, "quota_info", None)
             if (
@@ -103,23 +131,21 @@ def get_all_models(bypass_cache=False):
                 and q.remaining_fraction is not None
             ):
                 quota_pct = round(q.remaining_fraction * 100)
+
             parsed.append(
                 {
-                    "id": str(m.id).strip(),
-                    "display_name": (
-                        str(m.display_name).strip()
-                        if m.display_name
-                        else str(m.id).strip()
-                    ),
+                    "id": m_id,
+                    "display_name": dname,
                     "quota_pct": quota_pct,
                 }
             )
+
         parsed.sort(key=lambda x: x["display_name"].lower())
         _cached_models = parsed
         return _cached_models
     except Exception as e:
         print("Error fetching models:", e)
-        return [{"id": AI_MODEL, "display_name": AI_MODEL, "quota_pct": None}]
+        return [{"id": AI_MODEL, "display_name": "Gemini 3.1 Pro (low)", "quota_pct": None}]
 
 
 def stream_agent_loop():
