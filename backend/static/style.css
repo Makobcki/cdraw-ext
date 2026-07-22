@@ -17,6 +17,31 @@
   color-scheme: dark;
 }
 
+/* Hard reset for HTML5 <dialog> in legacy engines (IE11 MSHTML) */
+dialog {
+  display: none;
+  position: absolute;
+}
+dialog[open] {
+  display: block;
+}
+
+/* Force GPU composition layer for smooth rendering & animations in IE11 */
+#inputBarContainer,
+.attach-card,
+#sidebar,
+#sidebarOverlay,
+.overlay-sidebar,
+.msg-tool-container,
+.msg-action,
+.bubble,
+dialog#customModal,
+dialog#updaterModal,
+.model-dropdown-list {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
 html, body {
   margin: 0;
   padding: 0;
@@ -274,15 +299,30 @@ html, body {
   margin-bottom: 4px;
   padding: 0;
   list-style: none;
-  background-color: #1e1e1e;
+  background: #1e1e1e; /* Solid IE11 fallback */
+  background: rgba(30, 30, 30, 0.98);
   border: 1px solid #333;
   border-radius: 8px;
   box-shadow: 0 -4px 12px rgba(0,0,0,0.5);
   z-index: 1000;
-  min-width: 100%;
-  max-height: 200px;
+  min-width: 210px;
+  max-width: 280px;
+  width: max-content;
+  max-height: 220px;
   overflow-y: auto;
+  -ms-overflow-style: -ms-autohiding-scrollbar;
   display: none;
+  box-sizing: border-box;
+}
+.model-dropdown-list::-webkit-scrollbar {
+  width: 6px;
+}
+.model-dropdown-list::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+.model-dropdown-list::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 3px;
 }
 .model-dropdown-list.show {
   display: block;
@@ -295,6 +335,8 @@ html, body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-sizing: border-box;
+  min-height: 36px;
 }
 .model-dropdown-item:hover {
   background-color: rgba(255, 255, 255, 0.05);
@@ -910,12 +952,15 @@ html, body {
 }
 
 dialog#customModal {
+  background: #1e1e1e;
   background: var(--color-bg-surface);
+  border: 1px solid #333333;
   border: 1px solid var(--color-border-input);
   border-radius: 12px;
   width: 340px;
   max-width: 90%;
   padding: 0;
+  color: #ededed;
   color: var(--color-text-primary);
   box-shadow: 0 16px 32px rgba(0,0,0,0.7);
   overflow: hidden;
@@ -937,6 +982,7 @@ dialog#customModal::backdrop {
 #customModalBody {
   padding: 8px 20px 16px 20px;
   font-size: 13px;
+  color: #aaaaaa;
   color: var(--color-text-secondary);
   line-height: 1.5;
   white-space: pre-wrap;
@@ -947,7 +993,9 @@ dialog#customModal::backdrop {
 #customModalInput {
   width: 100%;
   box-sizing: border-box;
+  background: #111111;
   background: var(--color-bg-base);
+  border: 1px solid #444444;
   border: 1px solid var(--color-border-hover);
   color: #fff;
   border-radius: 6px;
@@ -956,6 +1004,7 @@ dialog#customModal::backdrop {
   outline: none;
 }
 #customModalInput:focus {
+  border-color: #4da6ff;
   border-color: var(--color-accent);
 }
 #customModalFooter {
@@ -963,6 +1012,7 @@ dialog#customModal::backdrop {
   justify-content: flex-end;
   padding: 12px 20px;
   background: #181818;
+  border-top: 1px solid #2a2a2a;
   border-top: 1px solid var(--color-border);
 }
 #customModalFooter form {
@@ -971,6 +1021,7 @@ dialog#customModal::backdrop {
   margin: 0;
 }
 #customModalCancel, #customModalOk {
+  background: #2a2a2a;
   background: var(--color-border);
   border: none;
   color: #fff;
@@ -981,14 +1032,17 @@ dialog#customModal::backdrop {
   transition: background 0.2s;
 }
 #customModalCancel:hover {
+  background: #333333;
   background: var(--color-border-input);
 }
 #customModalOk {
+  background: #4da6ff;
   background: var(--color-accent);
   color: #000;
   font-weight: 500;
 }
 #customModalOk:hover {
+  background: #3a85db;
   background: var(--color-accent-hover);
 }
 
@@ -1006,8 +1060,11 @@ dialog#customModal::backdrop {
  * --------------------------------------------------------------- */
 
 .footer-btn {
+  background: #1e1e1e;
   background: var(--color-bg-surface);
+  border: 1px solid #2a2a2a;
   border: 1px solid var(--color-border);
+  color: #aaaaaa;
   color: var(--color-text-secondary);
   border-radius: 6px;
   padding: 5px 10px;
@@ -1019,7 +1076,9 @@ dialog#customModal::backdrop {
   position: relative;
 }
 .footer-btn:hover {
+  border-color: #4da6ff;
   border-color: var(--color-accent);
+  color: #ededed;
   color: var(--color-text-primary);
   background: #252525;
 }
@@ -1082,12 +1141,15 @@ dialog#customModal::backdrop {
 }
 
 dialog#updaterModal {
+  background: #1e1e1e;
   background: var(--color-bg-surface);
+  border: 1px solid #333333;
   border: 1px solid var(--color-border-input);
   border-radius: 12px;
   width: 420px;
   max-width: 92%;
   padding: 0;
+  color: #ededed;
   color: var(--color-text-primary);
   box-shadow: 0 16px 36px rgba(0,0,0,0.75);
   overflow: hidden;
@@ -1105,6 +1167,7 @@ dialog#updaterModal::backdrop {
   justify-content: space-between;
   padding: 16px 20px;
   background: #181818;
+  border-bottom: 1px solid #2a2a2a;
   border-bottom: 1px solid var(--color-border);
 }
 .updater-modal-header h3 {
@@ -1117,6 +1180,7 @@ dialog#updaterModal::backdrop {
 .close-modal-btn {
   background: transparent;
   border: none;
+  color: #aaaaaa;
   color: var(--color-text-secondary);
   font-size: 16px;
   cursor: pointer;
@@ -1133,7 +1197,9 @@ dialog#updaterModal::backdrop {
 }
 
 .updater-info-card {
+  background: #111111;
   background: var(--color-bg-base);
+  border: 1px solid #2a2a2a;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 12px 14px;
@@ -1152,12 +1218,14 @@ dialog#updaterModal::backdrop {
 }
 
 .version-title {
+  color: #aaaaaa;
   color: var(--color-text-secondary);
 }
 
 .version-tag {
   font-family: monospace;
   font-weight: 600;
+  color: #4da6ff;
   color: var(--color-accent);
   background: rgba(0, 255, 170, 0.1);
   padding: 2px 6px;
@@ -1167,6 +1235,7 @@ dialog#updaterModal::backdrop {
 
 .status-tag {
   font-size: 12px;
+  color: #aaaaaa;
   color: var(--color-text-secondary);
 }
 
@@ -1189,13 +1258,14 @@ dialog#updaterModal::backdrop {
 }
 .release-notes-title {
   font-size: 12px;
+  color: #aaaaaa;
   color: var(--color-text-secondary);
   margin-bottom: 4px;
-
 }
 .release-notes-content {
   font-size: 12px;
   color: #d1d5db;
+  background: #111111;
   background: var(--color-bg-base);
   padding: 8px 10px;
   border-radius: 6px;
@@ -1211,6 +1281,7 @@ dialog#updaterModal::backdrop {
 }
 
 .btn-primary {
+  background: #4da6ff;
   background: var(--color-accent);
   color: #000;
   border: none;
@@ -1222,12 +1293,16 @@ dialog#updaterModal::backdrop {
   transition: background 0.2s ease;
 }
 .btn-primary:hover {
+  background: #3a85db;
   background: var(--color-accent-hover);
 }
 
 .btn-secondary {
+  background: #111111;
   background: var(--color-bg-base);
+  border: 1px solid #333333;
   border: 1px solid var(--color-border-input);
+  color: #ededed;
   color: var(--color-text-primary);
   font-size: 12px;
   padding: 6px 12px;
@@ -1236,6 +1311,7 @@ dialog#updaterModal::backdrop {
   transition: all 0.2s ease;
 }
 .btn-secondary:hover {
+  border-color: #4da6ff;
   border-color: var(--color-accent);
   background: #202020;
 }
@@ -1262,11 +1338,13 @@ dialog#updaterModal::backdrop {
   align-items: center;
   gap: 8px;
   font-size: 12px;
+  color: #aaaaaa;
   color: var(--color-text-secondary);
   cursor: pointer;
 }
 .checkbox-label input[type="checkbox"] {
   cursor: pointer;
+  accent-color: #4da6ff;
   accent-color: var(--color-accent);
 }
 
@@ -1274,6 +1352,7 @@ dialog#updaterModal::backdrop {
   display: flex;
   align-items: center;
   gap: 8px;
+  border-top: 1px solid #2a2a2a;
   border-top: 1px solid var(--color-border);
   padding-top: 14px;
 }
