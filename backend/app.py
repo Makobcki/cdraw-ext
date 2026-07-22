@@ -111,17 +111,22 @@ def get_all_models(bypass_cache=False):
         finally:
             loop.close()
 
-        seen_ids = set()
+        seen_api_names = set()
         parsed = []
         for m in models:
-            m_id = str(m.id).strip()
-            dname = str(m.display_name).strip() if m.display_name else m_id
-            if m_id in seen_ids:
+            raw_id = str(m.id).strip()
+            if not raw_id:
                 continue
-            if is_blacklisted_model(m_id, dname):
+            # Compare strictly by API model name for deduplication
+            normalized_api_name = raw_id.lower().replace("models/", "")
+            if normalized_api_name in seen_api_names:
                 continue
 
-            seen_ids.add(m_id)
+            dname = str(m.display_name).strip() if getattr(m, "display_name", None) else raw_id
+            if is_blacklisted_model(raw_id, dname):
+                continue
+
+            seen_api_names.add(normalized_api_name)
 
             quota_pct = None
             q = getattr(m, "quota_info", None)
@@ -134,7 +139,7 @@ def get_all_models(bypass_cache=False):
 
             parsed.append(
                 {
-                    "id": m_id,
+                    "id": raw_id,
                     "display_name": dname,
                     "quota_pct": quota_pct,
                 }
