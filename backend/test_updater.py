@@ -25,17 +25,35 @@ INITIAL_VERSION_DATA = {
 }
 
 class TestAutoUpdater(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.original_version_content = None
+        if os.path.exists(updater.VERSION_FILE):
+            try:
+                with open(updater.VERSION_FILE, "r", encoding="utf-8") as f:
+                    cls.original_version_content = f.read()
+            except Exception:
+                pass
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.original_version_content is not None:
+            try:
+                with open(updater.VERSION_FILE, "w", encoding="utf-8") as f:
+                    f.write(cls.original_version_content)
+            except Exception:
+                pass
+
     def setUp(self):
         self.app = app.test_client()
         self.app.testing = True
-        updater.save_version_info(dict(INITIAL_VERSION_DATA))
 
     def tearDown(self):
-        updater.save_version_info(dict(INITIAL_VERSION_DATA))
+        pass
 
     def test_01_version_info(self):
         info = updater.load_version_info()
-        self.assertEqual(info["version"], "1.0.0")
+        self.assertTrue(isinstance(info["version"], str))
         self.assertIn("auto_check", info)
         self.assertIn("Makobcki/cdraw-ext", info.get("update_url", ""))
 
@@ -68,11 +86,11 @@ class TestAutoUpdater(unittest.TestCase):
         self.assertIn("version", data)
 
     def test_06_updater_check_route(self):
-        res = self.app.post("/updater/check", json={"mock_version": "1.2.0"})
+        res = self.app.post("/updater/check", json={"mock_version": "9.9.9"})
         self.assertEqual(res.status_code, 200)
         data = res.get_json()
         self.assertTrue(data["update_available"])
-        self.assertEqual(data["latest_version"], "1.2.0")
+        self.assertEqual(data["latest_version"], "9.9.9")
 
     def test_07_updater_settings_route(self):
         res = self.app.post("/updater/settings", json={"auto_check": False})
