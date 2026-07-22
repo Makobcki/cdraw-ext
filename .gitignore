@@ -1,0 +1,4 @@
+.venv
+*.pyc
+multi_accounts.json
+backend/backups/
