@@ -2,3 +2,5 @@
 *.pyc
 multi_accounts.json
 backend/backups/
+chats.json
+backend/chats.json

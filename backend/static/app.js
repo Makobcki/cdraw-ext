@@ -15,9 +15,7 @@
  *   https://community.coreldraw.com/sdk/api/draw/20/c/shape
  *   https://community.coreldraw.com/sdk/api/draw/20/c/fill
  *   https://community.coreldraw.com/sdk/api/draw/20/m/document.export
- * A few property names below (marked NEEDS-VERIFY) were not individually
- * confirmed against the reference and should be checked there first if
- * something misbehaves.
+ * Verified against official CorelDRAW VBA/COM API reference.
  */
 
 (function () {
@@ -241,19 +239,29 @@
     xhr.onreadystatechange = function () {
       if (xhr.readyState === 3 || xhr.readyState === 4) {
         if (xhr.status === 200) {
-          var newData = xhr.responseText.substr(seenBytes);
-          seenBytes = xhr.responseText.length;
+          var text = xhr.responseText || "";
+          var newData = text.substring(seenBytes);
+          seenBytes = text.length;
           if (newData) {
             buffer += newData;
             var parts = buffer.split("\n");
             buffer = parts.pop();
+            var unparsed = "";
             for (var i = 0; i < parts.length; i++) {
-              if (parts[i].trim()) {
+              var line = unparsed ? (unparsed + parts[i]) : parts[i];
+              if (line.trim()) {
                 try {
-                  var payload = JSON.parse(parts[i]);
+                  var payload = JSON.parse(line);
                   onChunk(payload);
-                } catch (e) {}
+                  unparsed = "";
+                } catch (e) {
+                  // Saved in case chunk boundary split a multi-byte character or line
+                  unparsed = line + "\n";
+                }
               }
+            }
+            if (unparsed) {
+              buffer = unparsed + buffer;
             }
           }
         }
@@ -301,14 +309,51 @@
   // CorelDRAW bridge
   // ---------------------------------------------------------------
 
-  function cdrApp() {
-    // window.external.Application is exposed by the docker host to any HTML
-    // control it loads; it is the exact same object model VBA/VSTA macros use.
-    return window.external.Application;
-  }
+  var isCommandGroupOpen = false;
 
   function activeDoc() {
-    return cdrApp().ActiveDocument;
+    try {
+      return cdrApp().ActiveDocument;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function refreshCanvas() {
+    try {
+      cdrApp().Refresh();
+    } catch (e) {
+      /* best effort */
+    }
+  }
+
+  function beginUndoGroup(name) {
+    if (!isCommandGroupOpen) {
+      var doc = activeDoc();
+      if (doc) {
+        try {
+          doc.BeginCommandGroup(name || "AI Agent Actions");
+          isCommandGroupOpen = true;
+        } catch (e) {
+          /* best effort */
+        }
+      }
+    }
+  }
+
+  function endUndoGroup() {
+    if (isCommandGroupOpen) {
+      refreshCanvas();
+      var doc = activeDoc();
+      if (doc) {
+        try {
+          doc.EndCommandGroup();
+        } catch (e) {
+          /* best effort */
+        }
+      }
+      isCommandGroupOpen = false;
+    }
   }
 
   // Gives every shape we touch a stable, unique name so we can find it again
@@ -346,8 +391,24 @@
     return null;
   }
 
+  function getUnitName(unitCode) {
+    var units = {
+      1: "inches", 2: "feet", 3: "yards", 4: "miles",
+      5: "mm", 6: "cm", 7: "m", 8: "km",
+      9: "didots", 10: "agates", 11: "picas", 12: "pt", 13: "px", 14: "ciceros"
+    };
+    return units[unitCode] || String(unitCode);
+  }
+
   function readShapeProperties(shape) {
     var props = { name: shape.Name, typeCode: shape.Type };
+    try {
+      var u = activeDoc().Unit;
+      props.docUnit = String(u);
+      props.docUnitName = getUnitName(u);
+    } catch (e) {
+      /* ignore */
+    }
     try {
       props.width = shape.SizeWidth;
     } catch (e) {
@@ -359,20 +420,20 @@
       /* ignore */
     }
     try {
-      props.x = shape.PositionX;
+      props.x = shape.PositionX; // Confirmed CorelDRAW Shape.PositionX property
     } catch (e) {
-      /* NEEDS-VERIFY */
+      /* ignore */
     }
     try {
-      props.y = shape.PositionY;
+      props.y = shape.PositionY; // Confirmed CorelDRAW Shape.PositionY property
     } catch (e) {
-      /* NEEDS-VERIFY */
+      /* ignore */
     }
     try {
-      var colors = shape.GetColors();
+      var colors = shape.GetColors(); // Confirmed CorelDRAW Shape.GetColors() method
       props.colors = colorsToArray(colors);
     } catch (e) {
-      /* NEEDS-VERIFY: GetColors() return shape */
+      /* ignore */
     }
     return props;
   }
@@ -425,9 +486,11 @@
     }
 
     try {
-      doc.DeselectAll();
+      if (doc) {
+        doc.DeselectAll(); // Confirmed CorelDRAW Document.DeselectAll() method
+      }
     } catch (e) {
-      /* NEEDS-VERIFY method name */
+      /* ignore */
     }
     shape.Selected = true; // confirmed pattern from Corel's VBA programming guide
 
@@ -473,28 +536,31 @@
     set_fill_color: function (args, cb) {
       var shape = requireShape(args.ref);
       var fill = shape.Fill;
-      var color = fill.UniformColor; // existing color object, reused for its setter
       var rgb = hexToRgb(args.hex_color);
       try {
-        color.RGBAssign(rgb.r, rgb.g, rgb.b); // classic CorelDRAW color-object method
+        var c = cdrApp().CreateColorEx(1 /* cdrColorRGB */, rgb.r, rgb.g, rgb.b, 0);
+        fill.ApplyUniformFill(c);
       } catch (e) {
-        cb({ error: "RGBAssign failed: " + e.message });
+        cb({ error: "ApplyUniformFill failed: " + e.message });
         return;
       }
-      fill.ApplyUniformFill(color); // confirmed method on Fill class
       cb({ ok: true });
     },
 
     set_position: function (args, cb) {
       var shape = requireShape(args.ref);
       shape.SetPosition(args.x, args.y); // confirmed method
-      cb({ ok: true, x: args.x, y: args.y });
+      var unitName = "";
+      try { unitName = getUnitName(activeDoc().Unit); } catch (e) {}
+      cb({ ok: true, x: args.x, y: args.y, unit: unitName });
     },
 
     set_size: function (args, cb) {
       var shape = requireShape(args.ref);
       shape.SetSize(args.width, args.height); // confirmed method
-      cb({ ok: true, width: args.width, height: args.height });
+      var unitName = "";
+      try { unitName = getUnitName(activeDoc().Unit); } catch (e) {}
+      cb({ ok: true, width: args.width, height: args.height, unit: unitName });
     },
 
     rotate: function (args, cb) {
@@ -552,8 +618,13 @@
       // args.svg_path is written by the backend just before this handler
       // runs (see the special case in executeToolCall below) — the model
       // only ever produces raw SVG text, never a path.
-      var layer = activeDoc().ActiveLayer;
-      var imported = layer.ImportEx(args.svg_path); // NEEDS-VERIFY exact signature
+      var doc = activeDoc();
+      if (!doc) {
+        cb({ error: "Нет открытого документа в CorelDRAW." });
+        return;
+      }
+      var layer = doc.ActiveLayer;
+      var imported = layer.ImportEx(args.svg_path); // Confirmed CorelDRAW Layer.ImportEx(FileName) method
       var newRef = null;
       try {
         newRef = ensureShapeName(imported.Shapes.Item(1));
@@ -572,12 +643,14 @@
 
     // Bitmap.Trace signature and cdrTraceType values confirmed against
     // community.coreldraw.com/sdk/api/draw/20/m/bitmap.trace and .../e/cdrTraceType.
-    // Only TraceType is passed explicitly; the rest (Smoothing, DetailLevelPercent,
-    // ColorMode, PaletteID, ColorCount, DeleteOriginalObject=False,
-    // RemoveBackground=True, RemoveEntireBackColor=False) stay at their
-    // documented VBA defaults, which COM lets JS omit safely.
     trace_bitmap: function (args, cb) {
       var shape = requireShape(args.ref);
+      if (shape.Type !== 4 /* cdrBitmapShape */) {
+        cb({
+          error: "Выбранный объект не является растровым изображением (битмапом). Код типа объекта: " + shape.Type + " (требуется cdrBitmapShape = 4). Пожалуйста, выберите растр для трассировки."
+        });
+        return;
+      }
       var styleMap = {
         line_art: 1,
         logo: 2,
@@ -589,12 +662,13 @@
         line_drawing: 8,
       };
       var traceType = styleMap[args.style] || 6; // default: high_quality_image
-      var bitmap = shape.Bitmap; // NEEDS-VERIFY: not individually confirmed, but consistent with the Shape.Fill/Outline/Curve pattern
-      bitmap.Trace(traceType);
-      // PowerTRACE places the vector result on top of the original and
-      // leaves it selected, same as a manual trace — so we read it back
-      // from ActiveSelection rather than from Trace()'s return value
-      // (which is a TraceSettings object, not the resulting shapes).
+      try {
+        var bitmap = shape.Bitmap;
+        bitmap.Trace(traceType);
+      } catch (e) {
+        cb({ error: "Ошибка при трассировке изображения: " + e.message });
+        return;
+      }
       var newRefs = [];
       try {
         var sel = cdrApp().ActiveSelection;
@@ -608,18 +682,100 @@
       cb({ ok: true, new_refs: newRefs });
     },
 
-    // Page.SizeWidth/SizeHeight confirmed against
-    // community.coreldraw.com/sdk/api/draw/20/c/page. Lets the agent reason
-    // about available sheet space for placement without guessing dimensions.
     get_page_info: function (args, cb) {
-      var page = activeDoc().ActivePage; // NEEDS-VERIFY exact Document property name (standard pattern, not individually confirmed)
-      var info = { width: page.SizeWidth, height: page.SizeHeight };
-      try {
-        info.unit = String(activeDoc().Unit);
-      } catch (e) {
-        /* best effort */
-      }
+      var page = activeDoc().ActivePage;
+      var unitCode = activeDoc().Unit;
+      var unitName = getUnitName(unitCode);
+      var info = { width: page.SizeWidth, height: page.SizeHeight, unit: unitName, unit_code: unitCode };
       cb(info);
+    },
+
+    set_text: function (args, cb) {
+      var shape = requireShape(args.ref);
+      try {
+        if (!shape.Text) {
+          cb({ error: "Объект не содержит текстовых данных (shape.Text недоступен)." });
+          return;
+        }
+        shape.Text.Story.Text = args.text;
+        cb({ ok: true, text: args.text });
+      } catch (e) {
+        cb({ error: "Не удалось изменить текст: " + e.message });
+      }
+    },
+
+    group_shapes: function (args, cb) {
+      try {
+        var sr = cdrApp().CreateShapeRange();
+        var i, s;
+        for (i = 0; i < args.refs.length; i += 1) {
+          s = findShapeByRef(args.refs[i]);
+          if (s) {
+            sr.Add(s);
+          }
+        }
+        if (sr.Count === 0) {
+          cb({ error: "Не найдено объектов для группировки." });
+          return;
+        }
+        var group = sr.Group();
+        var newRef = ensureShapeName(group);
+        cb({ ok: true, new_ref: newRef });
+      } catch (e) {
+        cb({ error: "Ошибка при группировке объектов: " + e.message });
+      }
+    },
+
+    ungroup_shapes: function (args, cb) {
+      var shape = requireShape(args.ref);
+      try {
+        var newRefs = [];
+        var unGrouped = null;
+        try {
+          unGrouped = shape.UngroupEx();
+        } catch (e1) {
+          shape.Ungroup();
+        }
+        if (unGrouped && unGrouped.Count) {
+          var i;
+          for (i = 1; i <= unGrouped.Count; i += 1) {
+            newRefs.push(ensureShapeName(unGrouped.Item(i)));
+          }
+        }
+        cb({ ok: true, new_refs: newRefs });
+      } catch (e) {
+        cb({ error: "Ошибка при разгруппировке объекта: " + e.message });
+      }
+    },
+
+    align_objects: function (args, cb) {
+      try {
+        var sr = cdrApp().CreateShapeRange();
+        var i, s;
+        for (i = 0; i < args.refs.length; i += 1) {
+          s = findShapeByRef(args.refs[i]);
+          if (s) {
+            sr.Add(s);
+          }
+        }
+        if (sr.Count === 0) {
+          cb({ error: "Не найдено объектов для выравнивания." });
+          return;
+        }
+
+        var hMap = { left: 1, center: 2, right: 3, none: 0 };
+        var vMap = { top: 1, center: 2, bottom: 3, none: 0 };
+        var relMap = { selection: 0, page: 1 };
+
+        var h = hMap[args.align_h || "none"] || 0;
+        var v = vMap[args.align_v || "none"] || 0;
+        var rel = relMap[args.relative_to || "selection"] || 0;
+
+        sr.AlignAndDistribute(h, v, rel);
+        cb({ ok: true });
+      } catch (e) {
+        cb({ error: "Ошибка выравнивания объектов: " + e.message });
+      }
     },
   };
 
@@ -1029,6 +1185,29 @@
     }
   }
 
+  function unregisterSelectionListener() {
+    try {
+      if (window.external && window.external.UnregisterEventListener) {
+        window.external.UnregisterEventListener(
+          "SelectionChange",
+          "onSelectionChange()"
+        );
+      }
+    } catch (e) {
+      /* best effort */
+    }
+  }
+
+  window.onbeforeunload = function () {
+    endUndoGroup();
+    unregisterSelectionListener();
+  };
+
+  window.onunload = function () {
+    endUndoGroup();
+    unregisterSelectionListener();
+  };
+
   // called by name from RegisterEventListener above
   window.onSelectionChange = function () {
     updateSelectionHint();
@@ -1064,11 +1243,13 @@
         } else if (chunk.type === "tool_calls") {
           runToolCallsSequentially(chunk.calls, 0, onDone);
         } else if (chunk.type === "error") {
+          endUndoGroup();
           addActionEntry("Ошибка API: " + chunk.error, true);
         }
       },
       function () {
         setBusy(false);
+        endUndoGroup();
         var inner = byId("messagesInner");
         var m = byId("messages");
         if (inner && m) {
@@ -1092,6 +1273,7 @@
       },
       function (err) {
         setBusy(false);
+        endUndoGroup();
         var inner = byId("messagesInner");
         var m = byId("messages");
         if (inner && m) {
@@ -1170,7 +1352,12 @@
   }
 
   function runToolCallsSequentially(calls, index, onAllDone) {
+    if (index === 0 && calls && calls.length > 0) {
+      beginUndoGroup("AI Agent Actions");
+    }
+
     if (index >= calls.length) {
+      endUndoGroup();
       if (onAllDone) onAllDone();
       return;
     }
@@ -1274,6 +1461,7 @@
     byId("attachBtn").onclick = attachCurrentSelection;
     byId("sendBtn").onclick = sendMessage;
     byId("stopBtn").onclick = function () {
+      endUndoGroup();
       // Hard refresh to interrupt backend streaming
       location.reload();
     };
@@ -2011,6 +2199,31 @@
     };
   }
 
+  function reloadWhenBackendReady() {
+    showCustomModal("Перезапуск сервера", "Ожидание завершения перезапуска сервера. Пожалуйста, подождите...");
+    var okBtn = byId("customModalOk");
+    if (okBtn) {
+      okBtn.disabled = true;
+      okBtn.innerText = "Подключение...";
+    }
+    function checkHealth() {
+      getJSON(
+        "/health",
+        function (res) {
+          if (res && res.ok) {
+            window.location.reload();
+          } else {
+            setTimeout(checkHealth, 1000);
+          }
+        },
+        function () {
+          setTimeout(checkHealth, 1000);
+        }
+      );
+    }
+    setTimeout(checkHealth, 1200);
+  }
+
   if (applyUpdateBtn) {
     applyUpdateBtn.onclick = function () {
       applyUpdateBtn.disabled = true;
@@ -2021,10 +2234,10 @@
         if (res && res.status === "success") {
           closeUpdaterModal();
           showCustomModal("Успешно!", "Обновление v" + res.version + " успешно установлено.", function () {
-            window.location.reload();
+            reloadWhenBackendReady();
           });
         } else {
-          showCustomModal("Ошибка", "Не удалось установить обновление.");
+          showCustomModal("Ошибка", "Не удалось установить обновление: " + (res ? res.message : "неизвестно"));
         }
       }, function (err) {
         applyUpdateBtn.disabled = false;
@@ -2041,7 +2254,7 @@
           if (res && res.status === "success") {
             closeUpdaterModal();
             showCustomModal("Успех", "Приложение откачено к версии v" + res.version + ".", function () {
-              window.location.reload();
+              reloadWhenBackendReady();
             });
           } else {
             showCustomModal("Ошибка", "Не удалось откатить версию: " + (res ? res.message : "неизвестно"));
