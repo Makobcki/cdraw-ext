@@ -1101,28 +1101,48 @@ dialog#customModal::backdrop {
 }
 
 .update-banner {
+  position: absolute;
+  top: 12px;
+  left: 88px;
+  right: 16px;
+  background: #1e3c72;
   background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
   color: #fff;
-  padding: 8px 14px;
+  padding: 6px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  z-index: 100;
+  font-size: 12px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  z-index: 501;
   animation: fadeIn 0.3s ease;
+}
+
+#updateBannerText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: 2px;
+}
+
+.update-banner-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
 }
 
 .update-banner-action {
   background: #ffffff;
   color: #1e3c72;
   border: none;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   padding: 4px 10px;
   border-radius: 4px;
-  margin-left: 10px;
   cursor: pointer;
+  white-space: nowrap;
 }
 .update-banner-action:hover {
   background: #e0e0e0;
@@ -1134,7 +1154,8 @@ dialog#customModal::backdrop {
   color: rgba(255,255,255,0.7);
   font-size: 14px;
   cursor: pointer;
-  margin-left: 8px;
+  padding: 2px 4px;
+  line-height: 1;
 }
 .update-banner-close:hover {
   color: #fff;
@@ -1265,10 +1286,10 @@ dialog#updaterModal::backdrop {
 .release-notes-content {
   font-size: 12px;
   color: #d1d5db;
-  background: #111111;
-  background: var(--color-bg-base);
-  padding: 8px 10px;
-  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  border-left: 2px solid rgba(255, 255, 255, 0.15);
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
   line-height: 1.4;
   white-space: pre-wrap;
   max-height: 120px;
@@ -1276,8 +1297,17 @@ dialog#updaterModal::backdrop {
 }
 
 .update-actions {
-  display: flex;
-  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.update-actions .btn-primary {
+  width: 100%;
+  text-align: center;
+  display: block;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .btn-primary {
