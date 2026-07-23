@@ -45,6 +45,7 @@ from config import (
     STATIC_DIR,
     SYSTEM_PROMPT,
     atomic_write_json,
+    is_blacklisted_model,
     read_json_locked,
 )
 from tools import TOOLS
@@ -84,31 +85,6 @@ def load_hidden_models():
 
 def save_hidden_models(hidden_set):
     atomic_write_json(HIDDEN_MODELS_FILE, list(hidden_set))
-
-
-def is_blacklisted_model(model_id, display_name=""):
-    mid = str(model_id).lower()
-    dname = str(display_name).lower()
-
-    # Exclude models with "image" in display_name
-    if "image" in dname:
-        return True
-
-    # Exclude models with "agent" in API model name
-    if "agent" in mid:
-        return True
-
-    for kw in MODEL_BLACKLIST_KEYWORDS:
-        kw_lower = kw.lower()
-        if kw_lower in mid or kw_lower in dname:
-            return True
-        kw_dash = kw_lower.replace(" ", "-")
-        kw_underscore = kw_lower.replace(" ", "_")
-        if kw_dash in mid or kw_dash in dname:
-            return True
-        if kw_underscore in mid or kw_underscore in dname:
-            return True
-    return False
 
 
 def get_all_models(bypass_cache=False):

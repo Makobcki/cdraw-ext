@@ -15,6 +15,8 @@ DEFAULT_CONFIG = {
     "model_hover_delay_ms": 1200,
     "update_url": "https://raw.githubusercontent.com/Makobcki/cdraw-ext/main/backend/version.json",
     "download_url": "https://github.com/Makobcki/cdraw-ext/archive/refs/heads/main.zip",
+    "model_blacklist_display_name_keywords": ["image"],
+    "model_blacklist_api_name_keywords": ["agent"],
     "model_blacklist_keywords": ["chat_", "flash_lite", "2.5 pro", "flash lite"],
     "preserve_files": [
         ".venv",
@@ -71,9 +73,16 @@ def load_config():
 
 _loaded_cfg = load_config()
 
+MODEL_BLACKLIST_DISPLAY_NAME_KEYWORDS = _loaded_cfg.get(
+    "model_blacklist_display_name_keywords", DEFAULT_CONFIG["model_blacklist_display_name_keywords"]
+)
+MODEL_BLACKLIST_API_NAME_KEYWORDS = _loaded_cfg.get(
+    "model_blacklist_api_name_keywords", DEFAULT_CONFIG["model_blacklist_api_name_keywords"]
+)
 MODEL_BLACKLIST_KEYWORDS = _loaded_cfg.get(
     "model_blacklist_keywords", DEFAULT_CONFIG["model_blacklist_keywords"]
 )
+
 AI_MODEL = os.environ.get(
     "AI_MODEL", _loaded_cfg.get("ai_model", DEFAULT_CONFIG["ai_model"])
 )
@@ -105,6 +114,31 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 MULTI_ACCOUNTS_FILE = os.path.join(BASE_DIR, "multi_accounts.json")
 OAUTH_CONFIG_FILE = os.path.join(BASE_DIR, "oauth_config.json")
 CHATS_FILE = os.path.join(BASE_DIR, "chats.json")
+
+
+def is_blacklisted_model(model_id, display_name=""):
+    mid = str(model_id).lower()
+    dname = str(display_name).lower()
+
+    for kw in MODEL_BLACKLIST_DISPLAY_NAME_KEYWORDS:
+        if kw.lower() in dname:
+            return True
+
+    for kw in MODEL_BLACKLIST_API_NAME_KEYWORDS:
+        if kw.lower() in mid:
+            return True
+
+    for kw in MODEL_BLACKLIST_KEYWORDS:
+        kw_lower = kw.lower()
+        if kw_lower in mid or kw_lower in dname:
+            return True
+        kw_dash = kw_lower.replace(" ", "-")
+        kw_underscore = kw_lower.replace(" ", "_")
+        if kw_dash in mid or kw_dash in dname:
+            return True
+        if kw_underscore in mid or kw_underscore in dname:
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------
