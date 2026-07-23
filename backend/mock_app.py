@@ -35,11 +35,11 @@ def generate_random_stream():
         time.sleep(1.0)
         
         tools = [
-            ("set_fill_color", {"ref": "shape_" + str(random.randint(100, 999)), "hex_color": f"#{random.randint(0, 0xFFFFFF):06x}"}),
-            ("rotate", {"ref": "shape_" + str(random.randint(100, 999)), "angle": random.randint(1, 360)}),
-            ("set_position", {"ref": "shape_" + str(random.randint(100, 999)), "x": random.randint(0, 100), "y": random.randint(0, 100)}),
-            ("set_size", {"ref": "shape_" + str(random.randint(100, 999)), "width": random.randint(10, 200), "height": random.randint(10, 200)}),
-            ("duplicate", {"ref": "shape_" + str(random.randint(100, 999))})
+            ("set_fill_color", {"ref": "obj_" + uuid.uuid4().hex[:8], "hex_color": f"#{random.randint(0, 0xFFFFFF):06x}"}),
+            ("rotate", {"ref": "obj_" + uuid.uuid4().hex[:8], "angle": random.randint(1, 360)}),
+            ("set_position", {"ref": "obj_" + uuid.uuid4().hex[:8], "x": random.randint(0, 100), "y": random.randint(0, 100)}),
+            ("set_size", {"ref": "obj_" + uuid.uuid4().hex[:8], "width": random.randint(10, 200), "height": random.randint(10, 200)}),
+            ("duplicate", {"ref": "obj_" + uuid.uuid4().hex[:8]})
         ]
         chosen_tool, args = random.choice(tools)
         

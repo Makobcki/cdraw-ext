@@ -194,10 +194,11 @@ def stream_agent_loop():
                         for tc in chunk
                     ]
                     if CURRENT_CHAT_ID in CHATS:
+                        content_val = full_text if (full_text and full_text.strip()) else None
                         CHATS[CURRENT_CHAT_ID]["messages"].append(
                             Message(
                                 role="assistant",
-                                content=full_text if full_text else None,
+                                content=content_val,
                                 tool_calls=chunk,
                             )
                         )
@@ -217,7 +218,7 @@ def stream_agent_loop():
                 ).encode("utf-8")
                 break
 
-        if not has_tools and full_text:
+        if not has_tools and full_text and full_text.strip():
             if CURRENT_CHAT_ID in CHATS:
                 CHATS[CURRENT_CHAT_ID]["messages"].append(
                     Message(role="assistant", content=full_text)
@@ -242,6 +243,11 @@ def health():
 @app.route("/", methods=["GET"])
 def index():
     return send_from_directory(STATIC_DIR, "index.html")
+
+
+@app.route("/favicon.ico", methods=["GET"])
+def favicon():
+    return ("", 204)
 
 
 @app.route("/static/<path:filename>", methods=["GET"])
@@ -554,7 +560,19 @@ def get_history():
     if CURRENT_CHAT_ID not in CHATS:
         return jsonify({"messages": []})
 
-    msgs = [serialize_message(m) for m in CHATS[CURRENT_CHAT_ID]["messages"]]
+    msgs = []
+    for m in CHATS[CURRENT_CHAT_ID]["messages"]:
+        s_msg = serialize_message(m)
+        content = s_msg.get("content")
+        has_content = bool(content and isinstance(content, str) and content.strip() != "")
+        has_tool_calls = bool(s_msg.get("tool_calls"))
+        has_attachments = bool(s_msg.get("attachments") or s_msg.get("_attachments"))
+        has_tool_id = bool(s_msg.get("tool_call_id"))
+
+        if not has_content and not has_tool_calls and not has_attachments and not has_tool_id:
+            continue
+        msgs.append(s_msg)
+
     return jsonify({"messages": msgs})
 
 
@@ -618,7 +636,7 @@ def chat():
     attachments = data.get("attachments", [])
 
     info = []
-    if user_text:
+    if user_text and user_text.strip():
         info.append(user_text)
 
     for a in attachments:
@@ -628,8 +646,10 @@ def chat():
             with open(svg_path, "r", encoding="utf-8", errors="ignore") as f:
                 svg_text = f.read()
 
+        display_name = a.get("display_name") or a.get("properties", {}).get("typeName") or "Object"
         attachment_info = (
-            "Прикреплённый объект ref={ref} name={name} properties={props}".format(
+            "Прикреплённый объект {display_name} ref={ref} name={name} properties={props}".format(
+                display_name=display_name,
                 ref=a.get("ref"),
                 name=a.get("name"),
                 props=json.dumps(a.get("properties", {}), ensure_ascii=False),
@@ -641,6 +661,8 @@ def chat():
         info.append(attachment_info)
 
     final_text = "\n\n".join(info)
+    if not final_text and not attachments:
+        return jsonify({"status": "error", "message": "Сообщение не может быть пустым"}), 400
     if not final_text:
         final_text = "ping"
 
