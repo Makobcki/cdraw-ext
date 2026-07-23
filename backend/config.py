@@ -30,6 +30,7 @@ DEFAULT_CONFIG = {
         "hidden_models.json",
         "config.json",
         "system_prompt.md",
+        "tools.json",
     ],
     "shared_temp_dir": os.path.join(os.environ.get("TEMP", "C:\\Temp"), "cdr_ai_agent"),
 }
