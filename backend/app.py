@@ -176,30 +176,54 @@ def stream_agent_loop():
             return
 
         full_text = ""
+        full_thought = ""
         has_tools = False
 
         while True:
             try:
                 chunk = loop.run_until_complete(gen.__anext__())
+
+                # anti_client >= 0.1.3 yields StreamChunk objects instead of the
+                # legacy raw strings / ToolCall lists. Keep the old branches as a
+                # compatibility fallback for already bundled builds.
+                chunk_text = getattr(chunk, "text", None)
+                chunk_thought = getattr(chunk, "thought", None)
+                chunk_tool_calls = getattr(chunk, "tool_calls", None)
+
                 if isinstance(chunk, str):
-                    full_text += chunk
+                    chunk_text = chunk
+                elif isinstance(chunk, list):
+                    chunk_tool_calls = chunk
+
+                if chunk_thought:
+                    full_thought += chunk_thought
                     yield (
-                        json.dumps({"type": "chunk", "text": chunk}, ensure_ascii=False)
+                        json.dumps({"type": "thought", "text": chunk_thought}, ensure_ascii=False)
                         + "\n"
                     ).encode("utf-8")
-                elif isinstance(chunk, list):  # list of ToolCall
+
+                if chunk_text:
+                    full_text += chunk_text
+                    yield (
+                        json.dumps({"type": "chunk", "text": chunk_text}, ensure_ascii=False)
+                        + "\n"
+                    ).encode("utf-8")
+
+                if chunk_tool_calls:
                     has_tools = True
                     calls = [
                         {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
-                        for tc in chunk
+                        for tc in chunk_tool_calls
                     ]
                     if CURRENT_CHAT_ID in CHATS:
                         content_val = full_text if (full_text and full_text.strip()) else None
+                        thought_val = full_thought if (full_thought and full_thought.strip()) else None
                         CHATS[CURRENT_CHAT_ID]["messages"].append(
                             Message(
                                 role="assistant",
                                 content=content_val,
-                                tool_calls=chunk,
+                                thought=thought_val,
+                                tool_calls=chunk_tool_calls,
                             )
                         )
                         persist_chats()
@@ -218,10 +242,16 @@ def stream_agent_loop():
                 ).encode("utf-8")
                 break
 
-        if not has_tools and full_text and full_text.strip():
+        if not has_tools and (
+            (full_text and full_text.strip()) or (full_thought and full_thought.strip())
+        ):
             if CURRENT_CHAT_ID in CHATS:
                 CHATS[CURRENT_CHAT_ID]["messages"].append(
-                    Message(role="assistant", content=full_text)
+                    Message(
+                        role="assistant",
+                        content=full_text if full_text and full_text.strip() else None,
+                        thought=full_thought if full_thought and full_thought.strip() else None,
+                    )
                 )
                 persist_chats()
 
@@ -564,12 +594,14 @@ def get_history():
     for m in CHATS[CURRENT_CHAT_ID]["messages"]:
         s_msg = serialize_message(m)
         content = s_msg.get("content")
+        thought = s_msg.get("thought")
         has_content = bool(content and isinstance(content, str) and content.strip() != "")
+        has_thought = bool(thought and isinstance(thought, str) and thought.strip() != "")
         has_tool_calls = bool(s_msg.get("tool_calls"))
         has_attachments = bool(s_msg.get("attachments") or s_msg.get("_attachments"))
         has_tool_id = bool(s_msg.get("tool_call_id"))
 
-        if not has_content and not has_tool_calls and not has_attachments and not has_tool_id:
+        if not has_content and not has_thought and not has_tool_calls and not has_attachments and not has_tool_id:
             continue
         msgs.append(s_msg)
 
