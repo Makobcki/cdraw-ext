@@ -2278,33 +2278,50 @@
   // Custom Modals & Settings
   // ---------------------------------------------------------------
 
-  function showCustomModal(options) {
-    var dialog = byId("customModal");
+  function setupDialogPolyfill(dialog) {
+    if (!dialog) return;
     if (!dialog.showModal) {
-      dialog.showModal = function() {
-        dialog.style.display = 'block';
-        dialog.style.position = 'fixed';
-        dialog.style.top = '50%';
-        dialog.style.left = '50%';
-        dialog.style.transform = 'translate(-50%, -50%)';
-        dialog.style.zIndex = '10001';
-        dialog.style.margin = '0';
+      dialog.showModal = function () {
+        dialog.style.display = "block";
+        dialog.style.position = "fixed";
+        dialog.style.top = "50%";
+        dialog.style.left = "50%";
+        if (dialog.style.msTransform !== undefined) {
+          dialog.style.msTransform = "translate(-50%, -50%)";
+        }
+        dialog.style.transform = "translate(-50%, -50%)";
+        dialog.style.zIndex = "10001";
+        dialog.style.margin = "0";
+
         if (!window._dialogBackdrop) {
-          var bg = document.createElement('div');
-          bg.style.position = 'fixed';
-          bg.style.top = '0'; bg.style.left = '0'; bg.style.right = '0'; bg.style.bottom = '0';
-          bg.style.background = 'rgba(0,0,0,0.6)';
-          bg.style.zIndex = '10000';
+          var bg = document.createElement("div");
+          bg.style.position = "fixed";
+          bg.style.top = "0";
+          bg.style.left = "0";
+          bg.style.right = "0";
+          bg.style.bottom = "0";
+          bg.style.background = "rgba(0,0,0,0.6)";
+          bg.style.zIndex = "10000";
           document.body.appendChild(bg);
           window._dialogBackdrop = bg;
         }
-        window._dialogBackdrop.style.display = 'block';
-      };
-      dialog.close = function() {
-        dialog.style.display = 'none';
-        if (window._dialogBackdrop) window._dialogBackdrop.style.display = 'none';
+        window._dialogBackdrop.style.display = "block";
       };
     }
+    if (!dialog.close) {
+      dialog.close = function () {
+        dialog.style.display = "none";
+        if (window._dialogBackdrop) {
+          window._dialogBackdrop.style.display = "none";
+        }
+      };
+    }
+  }
+
+  function showCustomModal(options) {
+    var dialog = byId("customModal");
+    setupDialogPolyfill(dialog);
+
     var title = byId("customModalTitle");
     var body = byId("customModalBody");
     var inputContainer = byId("customModalInputContainer");
@@ -2386,7 +2403,8 @@
         resetBtn.innerHTML =
           '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="-960 960 960 960" fill="currentColor"><path d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z"/></svg>';
         resetBtn.onclick = function (e) {
-          e.stopPropagation();
+          e = e || window.event;
+          if (e.stopPropagation) e.stopPropagation();
           postJSON("/settings/model/reset", {}, function () {
             loadModels();
           });
@@ -2404,11 +2422,27 @@
           var li = el("li", "model-dropdown-item");
 
           var textSpan = el("span", "model-dropdown-item-text", m.display_name);
-          textSpan.onclick = function (e) {
-            e.stopPropagation();
+
+          // Click anywhere on the li (item) to select model
+          li.onclick = function (e) {
+            e = e || window.event;
+            var target = e.target || e.srcElement;
+
+            // If user clicked delete button, do not switch model
+            if (target && (target === delBtn || (target.className && String(target.className).indexOf("model-delete-btn") > -1))) {
+              return;
+            }
+
+            if (e.stopPropagation) e.stopPropagation();
+            if (e.cancelBubble !== undefined) e.cancelBubble = true;
+
             list.className = list.className.replace(" show", "");
-            current.innerText = m.display_name;
-            postJSON("/settings/model", { model: m.id }, function () {});
+            current.innerHTML = "";
+            current.appendChild(document.createTextNode(m.display_name));
+
+            postJSON("/settings/model", { model: m.id }, function () {
+              loadModels();
+            });
           };
 
           // In-place replacement with API model name after 1.2s hover (IE11 compatible)
@@ -2418,7 +2452,8 @@
               li.onmouseover = function () {
                 if (hoverTimer) clearTimeout(hoverTimer);
                 hoverTimer = setTimeout(function () {
-                  targetSpan.innerText = apiName;
+                  targetSpan.innerHTML = "";
+                  targetSpan.appendChild(document.createTextNode(apiName));
                 }, 1200);
               };
               li.onmouseout = function () {
@@ -2426,7 +2461,8 @@
                   clearTimeout(hoverTimer);
                   hoverTimer = null;
                 }
-                targetSpan.innerText = originalName;
+                targetSpan.innerHTML = "";
+                targetSpan.appendChild(document.createTextNode(originalName));
               };
             })(textSpan, m.display_name, m.id);
           }
@@ -2441,8 +2477,9 @@
           delBtn.innerHTML =
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
           delBtn.onclick = function (e) {
-            e.stopPropagation();
-            if (e && e.preventDefault) e.preventDefault();
+            e = e || window.event;
+            if (e.stopPropagation) e.stopPropagation();
+            if (e.preventDefault) e.preventDefault();
             var xhr = new XMLHttpRequest();
             xhr.open("DELETE", "/settings/model");
             xhr.setRequestHeader("Content-Type", "application/json");
@@ -2466,7 +2503,8 @@
           currentDisplayName = res.available_models[0].display_name;
         }
 
-        current.innerText = currentDisplayName;
+        current.innerHTML = "";
+        current.appendChild(document.createTextNode(currentDisplayName));
       }
     });
   }
@@ -2483,8 +2521,37 @@
     };
 
     document.addEventListener("click", function (e) {
+      e = e || window.event;
+      var target = e.target || e.srcElement;
+      if (!target) return;
+
+      if (target.nodeType === 3) {
+        target = target.parentNode;
+      }
+
       var wrapper = byId("modelSelectWrapper");
-      if (wrapper && !wrapper.contains(e.target)) {
+      if (!wrapper) return;
+
+      var isInside = false;
+      try {
+        if (wrapper.contains && typeof wrapper.contains === "function") {
+          isInside = wrapper.contains(target);
+        } else {
+          var curr = target;
+          while (curr) {
+            if (curr === wrapper) { isInside = true; break; }
+            curr = curr.parentNode;
+          }
+        }
+      } catch (err) {
+        var node = target;
+        while (node) {
+          if (node === wrapper) { isInside = true; break; }
+          node = node.parentNode;
+        }
+      }
+
+      if (!isInside) {
         modelSelectList.className = modelSelectList.className.replace(" show", "");
       }
     });
@@ -2517,22 +2584,16 @@
 
   function openUpdaterModal() {
     if (updaterModal) {
-      if (updaterModal.showModal) {
-        updaterModal.showModal();
-      } else {
-        updaterModal.style.display = "block";
-      }
+      setupDialogPolyfill(updaterModal);
+      updaterModal.showModal();
       fetchUpdaterStatus(false);
     }
   }
 
   function closeUpdaterModal() {
     if (updaterModal) {
-      if (updaterModal.close) {
-        updaterModal.close();
-      } else {
-        updaterModal.style.display = "none";
-      }
+      setupDialogPolyfill(updaterModal);
+      updaterModal.close();
     }
   }
 
