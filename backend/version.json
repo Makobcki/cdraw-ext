@@ -1,12 +1,12 @@
 {
-  "version": "1.2.2",
+  "version": "1.2.3",
   "auto_check": true,
   "update_url": "https://raw.githubusercontent.com/Makobcki/cdraw-ext/main/backend/version.json",
-  "last_checked": "2026-07-23T03:38:48.827598",
-  "latest_version": "1.2.2",
-  "release_notes": "",
+  "last_checked": null,
+  "latest_version": "1.2.3",
+  "release_notes": "Версия 1.2.3:\n- Полная совместимость всех инструментов (tools.json) с спецификацией Gemini API.\n- Устранены несовместимости exclusiveMinimum, anyOf и if/then/allOf блоков.\n- Валидация HEX/CMYK цветов, опорных точек anchor/pivot и параметров управления слоями.",
   "download_url": "https://github.com/Makobcki/cdraw-ext/archive/refs/heads/main.zip",
   "update_available": false,
-  "last_updated": "2026-07-23T03:38:53.317435",
-  "last_backup": "/home/frosty/cdraw-ext/backend/backups/backup_v1.2.1_20260723_033852"
+  "last_updated": null,
+  "last_backup": null
 }
