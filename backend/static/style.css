@@ -14,6 +14,7 @@
   --color-danger: #ff5252;
   --color-danger-hover: #ef4444;
   --font-base: 'Inter', "Segoe UI", Tahoma, Arial, sans-serif;
+  --edge-padding: 12px;
   color-scheme: dark;
 }
 
@@ -229,7 +230,7 @@ html, body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-width: 260px;
+  min-width: 0;
   position: relative;
   height: 100%;
   overflow: hidden;
@@ -260,9 +261,10 @@ html, body {
   position: relative;
   display: inline-block;
   user-select: none;
+  min-width: 0;
 }
 .model-dropdown-selected {
-  display: inline-block;
+  display: block;
   background-color: #1e1e1e;
   border: none;
   color: #ededed;
@@ -277,6 +279,9 @@ html, body {
   background-position: right 10px center;
   transition: opacity 0.2s ease;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
   box-sizing: border-box;
 }
 .model-dropdown-selected:hover {
@@ -296,8 +301,8 @@ html, body {
   border-radius: 8px;
   box-shadow: 0 -4px 12px rgba(0,0,0,0.5);
   z-index: 1000;
-  min-width: 210px;
-  max-width: 280px;
+  min-width: min(210px, calc(100vw - 16px));
+  max-width: min(280px, calc(100vw - 16px));
   width: max-content;
   max-height: 220px;
   overflow-y: auto;
@@ -334,7 +339,10 @@ html, body {
 }
 .model-dropdown-item-text {
   flex: 1;
+  min-width: 0;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding-right: 10px;
 }
 .model-delete-btn {
@@ -509,8 +517,10 @@ html, body {
 #messagesInner {
   padding-top: 44px; /* space for top controls (height ~36px + 8px gap) */
   padding-bottom: 8px;
-  padding-left: 8px;
-  padding-right: 8px;
+  padding-left: 12px;
+  padding-left: var(--edge-padding);
+  padding-right: 12px;
+  padding-right: var(--edge-padding);
   box-sizing: border-box;
 }
 
@@ -708,6 +718,7 @@ html, body {
 
 .msg-tool-header {
   display: inline-flex;
+  max-width: 100%;
   align-items: center;
   gap: 5px;
   cursor: pointer;
@@ -720,6 +731,8 @@ html, body {
 }
 
 .msg-tool-title {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 12px;
   color: #666666;
   color: var(--color-text-muted);
@@ -895,7 +908,8 @@ html, body {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  margin: 6px 8px 10px 8px;
+  margin: 6px 12px 10px 12px;
+  margin: 6px var(--edge-padding) 10px var(--edge-padding);
   padding: 8px 10px 6px 10px;
   background: #1e1e1e; /* Solid IE11 fallback */
   border: 1px solid #333333; /* IE11 fallback */
@@ -937,6 +951,8 @@ html, body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
 .input-controls-left {
@@ -944,10 +960,17 @@ html, body {
   align-items: center;
   gap: 6px;
   min-width: 0;
-  flex: 1;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 .input-controls-left > * + * {
   margin-left: 0;
+}
+
+.model-select-wrapper {
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 auto;
 }
 
 .input-controls-right {
@@ -975,7 +998,7 @@ html, body {
   color: #aaa;
   flex-shrink: 0;
 }
-#attachBtn svg { stroke: currentColor; transition: stroke 0.2s; }
+#attachBtn svg { width: 18px; height: 18px; stroke: currentColor; transition: stroke 0.2s; }
 #attachBtn:hover { background: #333; color: #fff; }
 
 #sendBtn, #stopBtn {
@@ -1496,8 +1519,10 @@ dialog#updaterModal::backdrop {
 #topControls {
   position: absolute;
   top: 6px;
-  left: 8px;
-  right: 8px;
+  left: 12px;
+  left: var(--edge-padding);
+  right: 12px;
+  right: var(--edge-padding);
   display: flex;
   flex-direction: row;
   align-items: center;
