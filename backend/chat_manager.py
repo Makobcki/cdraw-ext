@@ -8,6 +8,8 @@ def serialize_message(m):
         "role": m.role,
         "content": getattr(m, "_raw_content", m.content) if m.role == "user" else m.content,
     }
+    if getattr(m, "thought", None):
+        m_dict["thought"] = m.thought
     if getattr(m, "_raw_content", None) is not None:
         m_dict["_raw_content"] = m._raw_content
     if getattr(m, "_attachments", None) is not None:
@@ -56,6 +58,7 @@ def deserialize_message(m_dict):
     msg = Message(
         role=m_dict["role"],
         content=m_dict.get("content"),
+        thought=m_dict.get("thought"),
         tool_calls=tool_calls,
         tool_call_id=m_dict.get("tool_call_id"),
         attachments=attachments,
