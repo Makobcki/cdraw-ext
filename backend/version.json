@@ -2,11 +2,11 @@
   "version": "1.2.2",
   "auto_check": true,
   "update_url": "https://raw.githubusercontent.com/Makobcki/cdraw-ext/main/backend/version.json",
-  "last_checked": null,
+  "last_checked": "2026-07-23T03:38:48.827598",
   "latest_version": "1.2.2",
-  "release_notes": "Версия 1.2.2:\n- Системный промпт вынесен в system_prompt.md, а инструменты в tools.json.\n- Централизация всех настроек бэкенда и черных списков в config.json.\n- Расширение набора инструментов: set_outline, flip, replace_shape_svg, get_object_info, distribute_objects.\n- Полная поддержка CMYK-цветов, строгая JSON Schema валидация (anyOf/if-then) и опорные точки anchor/pivot.",
+  "release_notes": "",
   "download_url": "https://github.com/Makobcki/cdraw-ext/archive/refs/heads/main.zip",
   "update_available": false,
-  "last_updated": null,
-  "last_backup": null
+  "last_updated": "2026-07-23T03:38:53.317435",
+  "last_backup": "/home/frosty/cdraw-ext/backend/backups/backup_v1.2.1_20260723_033852"
 }

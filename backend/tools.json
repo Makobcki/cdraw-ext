@@ -1,7 +1,7 @@
 [
   {
     "name": "set_fill_color",
-    "description": "Задать сплошную заливку объекта. Требуется передать hex_color или cmyk_color. Если указаны оба цвета, приоритет отдается cmyk_color. Если документ в CMYK-режиме, RGB-цвет автоматически конвертируется в эквивалент CMYK.",
+    "description": "Задать сплошную заливку объекта. Передайте hex_color или cmyk_color. Если указаны оба цвета, приоритет отдается cmyk_color. Если документ в CMYK-режиме, RGB-цвет автоматически конвертируется в эквивалент CMYK.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -26,11 +26,7 @@
           "required": ["c", "m", "y", "k"]
         }
       },
-      "required": ["ref"],
-      "anyOf": [
-        { "required": ["hex_color"] },
-        { "required": ["cmyk_color"] }
-      ]
+      "required": ["ref"]
     }
   },
   {
@@ -61,7 +57,7 @@
         },
         "width": {
           "type": "number",
-          "exclusiveMinimum": 0,
+          "minimum": 0,
           "description": "Толщина линии обводки в единицах документа (doc.Unit)"
         },
         "style": {
@@ -137,12 +133,12 @@
         },
         "width": {
           "type": "number",
-          "exclusiveMinimum": 0,
+          "minimum": 0,
           "description": "Новая ширина объекта в единицах документа"
         },
         "height": {
           "type": "number",
-          "exclusiveMinimum": 0,
+          "minimum": 0,
           "description": "Новая высота объекта в единицах документа"
         },
         "keep_aspect_ratio": {
@@ -245,7 +241,7 @@
   },
   {
     "name": "order",
-    "description": "Изменить порядок наложения объекта в слое. Позволяет перемещать относительно слоев (front/back/forward/backward) или относительно конкретного целевого объекта (in_front_of/behind).",
+    "description": "Изменить порядок наложения объекта в слое. Позволяет перемещать относительно слоев (front/back/forward/backward) или относительно конкретного целевого объекта (in_front_of/behind, требует передачи target_ref).",
     "parameters": {
       "type": "object",
       "properties": {
@@ -270,19 +266,7 @@
           "description": "Идентификатор целевого объекта (обязателен при режиме in_front_of или behind)"
         }
       },
-      "required": ["ref", "mode"],
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "mode": { "enum": ["in_front_of", "behind"] }
-            }
-          },
-          "then": {
-            "required": ["target_ref"]
-          }
-        }
-      ]
+      "required": ["ref", "mode"]
     }
   },
   {
@@ -425,7 +409,7 @@
         },
         "font_size": {
           "type": "number",
-          "exclusiveMinimum": 0,
+          "minimum": 0,
           "description": "Кегль (размер шрифта) в пунктах (pt)"
         },
         "hex_color": {
