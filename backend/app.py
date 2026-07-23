@@ -7,7 +7,7 @@ import sys
 import threading
 import uuid
 
-from anti_client import Client, Message, FileAttachment
+from anti_client import Client, FileAttachment, Message
 from flask import (
     Flask,
     Response,
@@ -21,8 +21,8 @@ import updater
 from auth_manager import (
     get_current_client,
     load_accounts,
-    save_accounts,
     load_oauth_config,
+    save_accounts,
     save_oauth_config,
 )
 from chat_manager import (
@@ -56,9 +56,12 @@ def fix_browser_emulation():
         return
     try:
         import winreg
+
         key_path = r"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION"
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as key:
-            winreg.SetValueEx(key, "CorelDRW.exe", 0, winreg.REG_DWORD, BROWSER_EMULATION_VERSION)
+            winreg.SetValueEx(
+                key, "CorelDRW.exe", 0, winreg.REG_DWORD, BROWSER_EMULATION_VERSION
+            )
     except Exception as e:
         print("Registry fix error:", e)
 
@@ -111,7 +114,11 @@ def get_all_models(bypass_cache=False):
             if normalized_api_name in seen_api_names:
                 continue
 
-            dname = str(m.display_name).strip() if getattr(m, "display_name", None) else raw_id
+            dname = (
+                str(m.display_name).strip()
+                if getattr(m, "display_name", None)
+                else raw_id
+            )
             if is_blacklisted_model(raw_id, dname):
                 continue
 
@@ -139,10 +146,12 @@ def get_all_models(bypass_cache=False):
         return _cached_models
     except Exception as e:
         print("Error fetching models:", e)
-        return [{"id": AI_MODEL, "display_name": "Gemini 3.1 Pro (low)", "quota_pct": None}]
+        return [
+            {"id": AI_MODEL, "display_name": "Gemini 3.1 Pro (low)", "quota_pct": None}
+        ]
 
 
-def stream_agent_loop():
+def stream_agent_loop(chat_id):
     yield (" " * 2048 + "\n").encode("utf-8")
     if client is None:
         yield (
@@ -157,7 +166,7 @@ def stream_agent_loop():
         ).encode("utf-8")
         return
 
-    chat_messages = CHATS.get(CURRENT_CHAT_ID, {}).get("messages", [])
+    chat_messages = CHATS.get(chat_id, {}).get("messages", [])
     messages = [Message(role="system", content=SYSTEM_PROMPT)] + chat_messages
 
     loop = asyncio.new_event_loop()
@@ -172,7 +181,10 @@ def stream_agent_loop():
         try:
             gen = loop.run_until_complete(get_stream())
         except Exception as e:
-            yield (json.dumps({"type": "error", "error": str(e)}, ensure_ascii=False) + "\n").encode("utf-8")
+            yield (
+                json.dumps({"type": "error", "error": str(e)}, ensure_ascii=False)
+                + "\n"
+            ).encode("utf-8")
             return
 
         full_text = ""
@@ -183,9 +195,6 @@ def stream_agent_loop():
             try:
                 chunk = loop.run_until_complete(gen.__anext__())
 
-                # anti_client >= 0.1.3 yields StreamChunk objects instead of the
-                # legacy raw strings / ToolCall lists. Keep the old branches as a
-                # compatibility fallback for already bundled builds.
                 chunk_text = getattr(chunk, "text", None)
                 chunk_thought = getattr(chunk, "thought", None)
                 chunk_tool_calls = getattr(chunk, "tool_calls", None)
@@ -198,14 +207,19 @@ def stream_agent_loop():
                 if chunk_thought:
                     full_thought += chunk_thought
                     yield (
-                        json.dumps({"type": "thought", "text": chunk_thought}, ensure_ascii=False)
+                        json.dumps(
+                            {"type": "thought", "text": chunk_thought},
+                            ensure_ascii=False,
+                        )
                         + "\n"
                     ).encode("utf-8")
 
                 if chunk_text:
                     full_text += chunk_text
                     yield (
-                        json.dumps({"type": "chunk", "text": chunk_text}, ensure_ascii=False)
+                        json.dumps(
+                            {"type": "chunk", "text": chunk_text}, ensure_ascii=False
+                        )
                         + "\n"
                     ).encode("utf-8")
 
@@ -215,10 +229,16 @@ def stream_agent_loop():
                         {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
                         for tc in chunk_tool_calls
                     ]
-                    if CURRENT_CHAT_ID in CHATS:
-                        content_val = full_text if (full_text and full_text.strip()) else None
-                        thought_val = full_thought if (full_thought and full_thought.strip()) else None
-                        CHATS[CURRENT_CHAT_ID]["messages"].append(
+                    if chat_id in CHATS:
+                        content_val = (
+                            full_text if (full_text and full_text.strip()) else None
+                        )
+                        thought_val = (
+                            full_thought
+                            if (full_thought and full_thought.strip())
+                            else None
+                        )
+                        CHATS[chat_id]["messages"].append(
                             Message(
                                 role="assistant",
                                 content=content_val,
@@ -245,12 +265,14 @@ def stream_agent_loop():
         if not has_tools and (
             (full_text and full_text.strip()) or (full_thought and full_thought.strip())
         ):
-            if CURRENT_CHAT_ID in CHATS:
-                CHATS[CURRENT_CHAT_ID]["messages"].append(
+            if chat_id in CHATS:
+                CHATS[chat_id]["messages"].append(
                     Message(
                         role="assistant",
                         content=full_text if full_text and full_text.strip() else None,
-                        thought=full_thought if full_thought and full_thought.strip() else None,
+                        thought=full_thought
+                        if full_thought and full_thought.strip()
+                        else None,
                     )
                 )
                 persist_chats()
@@ -289,6 +311,7 @@ def static_files(filename):
 # Автообновление (Auto-updater)
 # ---------------------------------------------------------------------
 
+
 @app.route("/updater/status", methods=["GET"])
 def updater_status():
     info = updater.load_version_info()
@@ -321,13 +344,17 @@ update_lock = threading.Lock()
 @app.route("/updater/apply", methods=["POST"])
 def updater_apply():
     if not update_lock.acquire(blocking=False):
-        return jsonify({"status": "error", "message": "Обновление уже выполняется"}), 423
+        return jsonify(
+            {"status": "error", "message": "Обновление уже выполняется"}
+        ), 423
     try:
         data = request.get_json(silent=True) or {}
         target_version = data.get("target_version")
         source_path = data.get("source_path")
         do_restart = data.get("restart", True)
-        res = updater.apply_update(source_path=source_path, target_version=target_version)
+        res = updater.apply_update(
+            source_path=source_path, target_version=target_version
+        )
         if res.get("status") == "success" and do_restart:
             updater.schedule_restart(delay=1.0)
         return jsonify(res)
@@ -390,11 +417,21 @@ def settings_model():
 
             save_hidden_models(hidden)
 
-            if AI_MODEL == model_to_hide or AI_MODEL in hidden or not any(m["id"] == AI_MODEL for m in visible_models):
+            if (
+                AI_MODEL == model_to_hide
+                or AI_MODEL in hidden
+                or not any(m["id"] == AI_MODEL for m in visible_models)
+            ):
                 if visible_models:
                     AI_MODEL = visible_models[0]["id"]
 
-            return jsonify({"status": "ok", "current_model": AI_MODEL, "available_models": visible_models})
+            return jsonify(
+                {
+                    "status": "ok",
+                    "current_model": AI_MODEL,
+                    "available_models": visible_models,
+                }
+            )
         return jsonify({"error": "Invalid model"}), 400
 
 
@@ -410,7 +447,9 @@ def reset_models():
     all_models = get_all_models(bypass_cache=True)
     if all_models and not any(m["id"] == AI_MODEL for m in all_models):
         AI_MODEL = all_models[0]["id"]
-    return jsonify({"status": "ok", "current_model": AI_MODEL, "available_models": all_models})
+    return jsonify(
+        {"status": "ok", "current_model": AI_MODEL, "available_models": all_models}
+    )
 
 
 @app.route("/auth/oauth_config", methods=["GET", "POST"])
@@ -451,10 +490,15 @@ def auth_login():
     def do_login():
         import subprocess
         import sys
+
         try:
             subprocess.run(
-                [sys.executable, "-c", "import anti_client.client; anti_client.client.authenticate()"],
-                check=True
+                [
+                    sys.executable,
+                    "-c",
+                    "import anti_client.client; anti_client.client.authenticate()",
+                ],
+                check=True,
             )
         except Exception as e:
             print("Login error:", e)
@@ -595,13 +639,23 @@ def get_history():
         s_msg = serialize_message(m)
         content = s_msg.get("content")
         thought = s_msg.get("thought")
-        has_content = bool(content and isinstance(content, str) and content.strip() != "")
-        has_thought = bool(thought and isinstance(thought, str) and thought.strip() != "")
+        has_content = bool(
+            content and isinstance(content, str) and content.strip() != ""
+        )
+        has_thought = bool(
+            thought and isinstance(thought, str) and thought.strip() != ""
+        )
         has_tool_calls = bool(s_msg.get("tool_calls"))
         has_attachments = bool(s_msg.get("attachments") or s_msg.get("_attachments"))
         has_tool_id = bool(s_msg.get("tool_call_id"))
 
-        if not has_content and not has_thought and not has_tool_calls and not has_attachments and not has_tool_id:
+        if (
+            not has_content
+            and not has_thought
+            and not has_tool_calls
+            and not has_attachments
+            and not has_tool_id
+        ):
             continue
         msgs.append(s_msg)
 
@@ -655,10 +709,7 @@ def upload_attachment():
     path = os.path.join(SHARED_TEMP_DIR, token + ext)
     file.save(path)
 
-    return jsonify({
-        "png_path": path,
-        "name": file.filename or ("pasted_image" + ext)
-    })
+    return jsonify({"png_path": path, "name": file.filename or ("pasted_image" + ext)})
 
 
 @app.route("/chat", methods=["POST"])
@@ -666,6 +717,7 @@ def chat():
     data = request.get_json(force=True)
     user_text = data.get("message", "")
     attachments = data.get("attachments", [])
+    chat_id = data.get("chat_id") or CURRENT_CHAT_ID
 
     info = []
     if user_text and user_text.strip():
@@ -678,14 +730,14 @@ def chat():
             with open(svg_path, "r", encoding="utf-8", errors="ignore") as f:
                 svg_text = f.read()
 
-        display_name = a.get("display_name") or a.get("properties", {}).get("typeName") or "Object"
-        attachment_info = (
-            "Прикреплённый объект {display_name} ref={ref} name={name} properties={props}".format(
-                display_name=display_name,
-                ref=a.get("ref"),
-                name=a.get("name"),
-                props=json.dumps(a.get("properties", {}), ensure_ascii=False),
-            )
+        display_name = (
+            a.get("display_name") or a.get("properties", {}).get("typeName") or "Object"
+        )
+        attachment_info = "Прикреплённый объект {display_name} ref={ref} name={name} properties={props}".format(
+            display_name=display_name,
+            ref=a.get("ref"),
+            name=a.get("name"),
+            props=json.dumps(a.get("properties", {}), ensure_ascii=False),
         )
         if svg_text:
             attachment_info += "\nSVG контур (может быть обрезан):\n" + svg_text[:4000]
@@ -694,7 +746,9 @@ def chat():
 
     final_text = "\n\n".join(info)
     if not final_text and not attachments:
-        return jsonify({"status": "error", "message": "Сообщение не может быть пустым"}), 400
+        return jsonify(
+            {"status": "error", "message": "Сообщение не может быть пустым"}
+        ), 400
     if not final_text:
         final_text = "ping"
 
@@ -707,24 +761,21 @@ def chat():
                 mime_type = "image/png"
             with open(png_path, "rb") as f:
                 b64 = base64.b64encode(f.read()).decode("utf-8")
-                model_attachments.append(FileAttachment(
-                    mime_type=mime_type,
-                    data=b64
-                ))
+                model_attachments.append(FileAttachment(mime_type=mime_type, data=b64))
 
-    if CURRENT_CHAT_ID in CHATS:
-        if len(CHATS[CURRENT_CHAT_ID]["messages"]) == 0:
-            CHATS[CURRENT_CHAT_ID]["title"] = user_text[:30] + (
+    if chat_id in CHATS:
+        if len(CHATS[chat_id]["messages"]) == 0:
+            CHATS[chat_id]["title"] = user_text[:30] + (
                 "..." if len(user_text) > 30 else ""
             )
         msg = Message(role="user", content=final_text, attachments=model_attachments)
         msg._raw_content = user_text
         msg._attachments = attachments
-        CHATS[CURRENT_CHAT_ID]["messages"].append(msg)
+        CHATS[chat_id]["messages"].append(msg)
         persist_chats()
 
     resp = Response(
-        stream_with_context(stream_agent_loop()),
+        stream_with_context(stream_agent_loop(chat_id)),
         mimetype="text/event-stream",
         direct_passthrough=True,
     )
@@ -737,6 +788,7 @@ def chat():
 def tool_result():
     data = request.get_json(force=True)
     result = data.get("result", {})
+    chat_id = data.get("chat_id") or CURRENT_CHAT_ID
 
     svg_path = result.get("svg_path")
     if svg_path and os.path.exists(svg_path):
@@ -752,13 +804,10 @@ def tool_result():
             mime_type = "image/png"
         with open(png_path, "rb") as f:
             b64 = base64.b64encode(f.read()).decode("utf-8")
-            model_attachments.append(FileAttachment(
-                mime_type=mime_type,
-                data=b64
-            ))
+            model_attachments.append(FileAttachment(mime_type=mime_type, data=b64))
 
-    if CURRENT_CHAT_ID in CHATS:
-        CHATS[CURRENT_CHAT_ID]["messages"].append(
+    if chat_id in CHATS:
+        CHATS[chat_id]["messages"].append(
             Message(
                 role="tool",
                 tool_call_id=data["tool_call_id"],
@@ -769,7 +818,7 @@ def tool_result():
         persist_chats()
 
     resp = Response(
-        stream_with_context(stream_agent_loop()),
+        stream_with_context(stream_agent_loop(chat_id)),
         mimetype="text/event-stream",
         direct_passthrough=True,
     )
