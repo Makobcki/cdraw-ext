@@ -690,12 +690,26 @@ def tool_result():
             result = dict(result)
             result["svg"] = f.read()[:MAX_SVG_CHAR_LIMIT]
 
+    model_attachments = []
+    png_path = result.get("png_path")
+    if png_path and os.path.exists(png_path):
+        mime_type, _ = mimetypes.guess_type(png_path)
+        if not mime_type:
+            mime_type = "image/png"
+        with open(png_path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode("utf-8")
+            model_attachments.append(FileAttachment(
+                mime_type=mime_type,
+                data=b64
+            ))
+
     if CURRENT_CHAT_ID in CHATS:
         CHATS[CURRENT_CHAT_ID]["messages"].append(
             Message(
                 role="tool",
                 tool_call_id=data["tool_call_id"],
                 content=json.dumps(result, ensure_ascii=False),
+                attachments=model_attachments,
             )
         )
         persist_chats()
