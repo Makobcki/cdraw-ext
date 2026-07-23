@@ -32,11 +32,15 @@ from chat_manager import (
 )
 from config import (
     AI_MODEL,
+    BROWSER_EMULATION_VERSION,
     CHATS_FILE,
     HIDDEN_MODELS_FILE,
+    MAX_SVG_CHAR_LIMIT,
     MODEL_BLACKLIST_KEYWORDS,
     MULTI_ACCOUNTS_FILE,
     OAUTH_CONFIG_FILE,
+    SERVER_HOST,
+    SERVER_PORT,
     SHARED_TEMP_DIR,
     STATIC_DIR,
     SYSTEM_PROMPT,
@@ -53,7 +57,7 @@ def fix_browser_emulation():
         import winreg
         key_path = r"Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION"
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as key:
-            winreg.SetValueEx(key, "CorelDRW.exe", 0, winreg.REG_DWORD, 11001)
+            winreg.SetValueEx(key, "CorelDRW.exe", 0, winreg.REG_DWORD, BROWSER_EMULATION_VERSION)
     except Exception as e:
         print("Registry fix error:", e)
 
@@ -708,7 +712,7 @@ def tool_result():
     if svg_path and os.path.exists(svg_path):
         with open(svg_path, "r", encoding="utf-8", errors="ignore") as f:
             result = dict(result)
-            result["svg"] = f.read()[:6000]
+            result["svg"] = f.read()[:MAX_SVG_CHAR_LIMIT]
 
     if CURRENT_CHAT_ID in CHATS:
         CHATS[CURRENT_CHAT_ID]["messages"].append(
@@ -731,4 +735,4 @@ def tool_result():
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5055, threaded=True)
+    app.run(host=SERVER_HOST, port=SERVER_PORT, threaded=True)

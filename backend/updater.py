@@ -14,7 +14,13 @@ from datetime import datetime
 VERSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "version.json")
 BACKUPS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backups")
 
-from config import atomic_write_json, read_json_locked
+from config import (
+    DOWNLOAD_URL,
+    PRESERVE_FILES as CONFIG_PRESERVE_FILES,
+    UPDATE_URL,
+    atomic_write_json,
+    read_json_locked,
+)
 
 
 def get_installed_version():
@@ -29,26 +35,16 @@ def get_default_version_data():
     return {
         "version": curr_ver,
         "auto_check": True,
-        "update_url": "https://raw.githubusercontent.com/Makobcki/cdraw-ext/main/backend/version.json",
+        "update_url": UPDATE_URL,
         "last_checked": None,
         "latest_version": curr_ver,
         "release_notes": "",
-        "download_url": "https://github.com/Makobcki/cdraw-ext/archive/refs/heads/main.zip",
-        "update_available": False
+        "download_url": DOWNLOAD_URL,
+        "update_available": False,
     }
 
 
-PRESERVE_FILES = {
-    ".venv",
-    "backups",
-    "oauth_config.json",
-    "multi_accounts.json",
-    ".env",
-    "version.json",
-    "chats.json",
-    "hidden_models.json",
-    "config.json",
-}
+PRESERVE_FILES = set(CONFIG_PRESERVE_FILES)
 
 
 def load_version_info():
