@@ -124,6 +124,7 @@ html, body {
   flex-direction: column;
   z-index: 2000;
   transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  border-right: 1px solid #2a2a2a; /* IE11 fallback */
   border-right: 1px solid var(--color-border);
 }
 
@@ -143,6 +144,9 @@ html, body {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.sidebar-header-actions > * + * {
+  margin-left: 8px;
 }
 #sidebarNewChatBtn, #closeSidebarBtn {
   background: transparent;
@@ -820,6 +824,7 @@ html, body {
 }
 
 #inputBarContainer:focus-within {
+  border-color: #4da6ff; /* IE11 fallback */
   border-color: var(--color-accent);
   box-shadow: 0 8px 32px rgba(77, 166, 255, 0.15);
 }
@@ -858,11 +863,17 @@ html, body {
   align-items: center;
   gap: 12px;
 }
+.input-controls-left > * + * {
+  margin-left: 12px;
+}
 
 .input-controls-right {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.input-controls-right > * + * {
+  margin-left: 8px;
 }
 
 #attachBtn {
@@ -1020,6 +1031,9 @@ dialog#customModal::backdrop {
   gap: 10px;
   margin: 0;
 }
+#customModalFooter form > * + * {
+  margin-left: 10px;
+}
 #customModalCancel, #customModalOk {
   background: #2a2a2a;
   background: var(--color-border);
@@ -1131,6 +1145,9 @@ dialog#customModal::backdrop {
   align-items: center;
   gap: 6px;
   margin-left: 10px;
+}
+.update-banner-right > * + * {
+  margin-left: 6px;
 }
 
 .update-banner-action {
