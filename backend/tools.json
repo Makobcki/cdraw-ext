@@ -22,18 +22,32 @@
   },
   {
     "name": "set_position",
-    "description": "Переместить объект в абсолютные координаты страницы (в текущих единицах измерения документа doc.Unit).",
+    "description": "Переместить объект в координаты страницы в единицах документа (doc.Unit). X растет вправо, Y растет вверх от нижнего левого угла страницы CorelDRAW. По умолчанию позиция задается для верхнего левого угла объекта (anchor='top_left').",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
-          "type": "string"
+          "type": "string",
+          "description": "Идентификатор объекта"
         },
         "x": {
-          "type": "number"
+          "type": "number",
+          "description": "Координата X в единицах документа"
         },
         "y": {
-          "type": "number"
+          "type": "number",
+          "description": "Координата Y в единицах документа"
+        },
+        "anchor": {
+          "type": "string",
+          "enum": [
+            "top_left",
+            "center",
+            "bottom_left",
+            "top_right",
+            "bottom_right"
+          ],
+          "description": "Опорная точка привязки объекта (по умолчанию top_left)"
         }
       },
       "required": [
@@ -45,18 +59,34 @@
   },
   {
     "name": "set_size",
-    "description": "Задать ширину и высоту объекта (в текущих единицах измерения документа doc.Unit).",
+    "description": "Задать ширину и высоту объекта в единицах документа (doc.Unit). По умолчанию масштабирование идет относительно верхнего левого угла без сохранения пропорций.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
-          "type": "string"
+          "type": "string",
+          "description": "Идентификатор объекта"
         },
         "width": {
-          "type": "number"
+          "type": "number",
+          "description": "Новая ширина объекта в единицах документа"
         },
         "height": {
-          "type": "number"
+          "type": "number",
+          "description": "Новая высота объекта в единицах документа"
+        },
+        "keep_aspect_ratio": {
+          "type": "boolean",
+          "description": "Сохранять пропорции объекта (по умолчанию false)"
+        },
+        "anchor": {
+          "type": "string",
+          "enum": [
+            "top_left",
+            "center",
+            "bottom_left"
+          ],
+          "description": "Опорная точка при изменении размера (по умолчанию top_left)"
         }
       },
       "required": [
@@ -68,15 +98,28 @@
   },
   {
     "name": "rotate",
-    "description": "Повернуть объект на заданный угол в градусах.",
+    "description": "Повернуть объект на заданный угол в градусах. Положительный угол — поворот против часовой стрелки (стандарт CorelDRAW), отрицательный — по часовой. По умолчанию поворот выполняется относительно центра объекта.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
-          "type": "string"
+          "type": "string",
+          "description": "Идентификатор объекта"
         },
         "angle": {
-          "type": "number"
+          "type": "number",
+          "description": "Угол поворота в градусах"
+        },
+        "pivot": {
+          "type": "string",
+          "enum": [
+            "center",
+            "top_left",
+            "bottom_left",
+            "top_right",
+            "bottom_right"
+          ],
+          "description": "Точка пивота вращения (по умолчанию center)"
         }
       },
       "required": [
@@ -87,12 +130,21 @@
   },
   {
     "name": "duplicate",
-    "description": "Продублировать объект. Возвращает ref новой копии.",
+    "description": "Продублировать объект. По умолчанию копия создается ровно поверх оригинала (offset_x=0, offset_y=0). Возвращает ref новой копии.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
-          "type": "string"
+          "type": "string",
+          "description": "Идентификатор объекта"
+        },
+        "offset_x": {
+          "type": "number",
+          "description": "Смещение новой копии по горизонтали X (по умолчанию 0)"
+        },
+        "offset_y": {
+          "type": "number",
+          "description": "Смещение новой копии по вертикали Y (по умолчанию 0)"
         }
       },
       "required": [
@@ -107,7 +159,8 @@
       "type": "object",
       "properties": {
         "ref": {
-          "type": "string"
+          "type": "string",
+          "description": "Идентификатор объекта"
         }
       },
       "required": [
@@ -117,12 +170,13 @@
   },
   {
     "name": "convert_to_curves",
-    "description": "Преобразовать объект в кривые перед точечным редактированием контура.",
+    "description": "Преобразовать фигуру или текстовый объект в кривые (Convert to Curves).",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
-          "type": "string"
+          "type": "string",
+          "description": "Идентификатор объекта"
         }
       },
       "required": [
@@ -132,12 +186,13 @@
   },
   {
     "name": "order",
-    "description": "Изменить порядок наложения объекта.",
+    "description": "Изменить порядок наложения объекта в слое.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
-          "type": "string"
+          "type": "string",
+          "description": "Идентификатор объекта"
         },
         "mode": {
           "type": "string",
@@ -146,7 +201,8 @@
             "back",
             "forward",
             "backward"
-          ]
+          ],
+          "description": "Направление перемещения"
         }
       },
       "required": [
@@ -157,12 +213,13 @@
   },
   {
     "name": "export_svg",
-    "description": "Получить актуальные векторные SVG-данные объекта.",
+    "description": "Получить актуальные векторные SVG-данные объекта для анализа или модификации.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
-          "type": "string"
+          "type": "string",
+          "description": "Идентификатор объекта"
         }
       },
       "required": [
@@ -172,7 +229,7 @@
   },
   {
     "name": "import_svg",
-    "description": "Создать новый объект из SVG-разметки.",
+    "description": "Создать новый векторный объект из SVG-разметки. Если координаты x и y не указаны, созданный объект автоматически размещается по центру выделения или страницы.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -181,13 +238,36 @@
           "description": "Полная SVG-разметка"
         },
         "x": {
-          "type": "number"
+          "type": "number",
+          "description": "Координата X размещения (опционально)"
         },
         "y": {
-          "type": "number"
+          "type": "number",
+          "description": "Координата Y размещения (опционально)"
         }
       },
       "required": [
+        "svg"
+      ]
+    }
+  },
+  {
+    "name": "replace_shape_svg",
+    "description": "Заменить существующий объект новым SVG-контуром на месте. Старый объект удаляется, а новый размещается точно на его месте с сохранением координат (x, y) и порядка наложения (z-order).",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Идентификатор заменяемого объекта"
+        },
+        "svg": {
+          "type": "string",
+          "description": "Новая векторная SVG-разметка"
+        }
+      },
+      "required": [
+        "ref",
         "svg"
       ]
     }
@@ -234,7 +314,7 @@
   },
   {
     "name": "set_text",
-    "description": "Изменить содержимое текстового блока.",
+    "description": "Изменить содержимое текстового блока, а также опционально его гарнитуру, размер, цвет и выравнивание.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -245,11 +325,32 @@
         "text": {
           "type": "string",
           "description": "Новый текст"
+        },
+        "font_name": {
+          "type": "string",
+          "description": "Имя шрифта (например, Arial, Times New Roman)"
+        },
+        "font_size": {
+          "type": "number",
+          "description": "Кегль (размер шрифта) в пунктах (pt)"
+        },
+        "hex_color": {
+          "type": "string",
+          "description": "Цвет текста в формате #RRGGBB"
+        },
+        "alignment": {
+          "type": "string",
+          "enum": [
+            "left",
+            "center",
+            "right",
+            "justify"
+          ],
+          "description": "Выравнивание текста"
         }
       },
       "required": [
-        "ref",
-        "text"
+        "ref"
       ]
     }
   },
@@ -332,6 +433,42 @@
       },
       "required": [
         "refs"
+      ]
+    }
+  },
+  {
+    "name": "distribute_objects",
+    "description": "Равномерно распределить выделенные объекты по горизонтали или вертикали.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Список идентификаторов объектов для распределения"
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "horizontal",
+            "vertical"
+          ],
+          "description": "Направление распределения: горизонтально или вертикально"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "equal_spaces",
+            "equal_centers"
+          ],
+          "description": "Режим: равные интервалы между гранями (equal_spaces) или между центрами (equal_centers)"
+        }
+      },
+      "required": [
+        "refs",
+        "direction"
       ]
     }
   }
