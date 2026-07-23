@@ -558,8 +558,17 @@
           return;
         }
         var fill = shape.Fill;
-        var rgb = hexToRgb(args.hex_color);
-        var c = cdrApp().CreateColorEx(1 /* cdrColorRGB */, rgb.r, rgb.g, rgb.b, 0);
+        var c;
+        if (args.cmyk_color) {
+          var cmyk = args.cmyk_color;
+          c = cdrApp().CreateColorEx(2 /* cdrColorCMYK */, cmyk.c, cmyk.m, cmyk.y, cmyk.k);
+        } else if (args.hex_color) {
+          var rgb = hexToRgb(args.hex_color);
+          c = cdrApp().CreateColorEx(1 /* cdrColorRGB */, rgb.r, rgb.g, rgb.b, 0);
+        } else {
+          cb({ error: "Не указан цвет (требуется hex_color или cmyk_color)." });
+          return;
+        }
         fill.ApplyUniformFill(c);
         cb({ ok: true });
       } catch (e) {
@@ -567,10 +576,83 @@
       }
     },
 
+    set_outline: function (args, cb) {
+      try {
+        var shape = requireShape(args.ref);
+        if (!shape || !shape.Outline) {
+          cb({ error: "Объект не поддерживает обводку (shape.Outline недоступен)." });
+          return;
+        }
+        var outline = shape.Outline;
+        if (args.style === "none") {
+          outline.SetProperties(0);
+          cb({ ok: true, style: "none" });
+          return;
+        }
+        if (typeof args.width === "number") {
+          outline.Width = args.width;
+        }
+        if (args.cmyk_color) {
+          var cmyk = args.cmyk_color;
+          var cCmyk = cdrApp().CreateColorEx(2 /* cdrColorCMYK */, cmyk.c, cmyk.m, cmyk.y, cmyk.k);
+          outline.Color = cCmyk;
+        } else if (args.hex_color) {
+          var rgb = hexToRgb(args.hex_color);
+          var cRgb = cdrApp().CreateColorEx(1 /* cdrColorRGB */, rgb.r, rgb.g, rgb.b, 0);
+          outline.Color = cRgb;
+        }
+        if (args.style) {
+          var styleMap = { solid: 1, dash: 2, dot: 3, dash_dot: 4 };
+          var lineStyle = styleMap[args.style];
+          if (lineStyle && outline.Style) {
+            try { outline.Style = lineStyle; } catch (eStyle) {}
+          }
+        }
+        cb({ ok: true });
+      } catch (e) {
+        cb({ error: "Ошибка настройки обводки: " + e.message });
+      }
+    },
+
+    flip: function (args, cb) {
+      try {
+        var shape = requireShape(args.ref);
+        if (args.direction === "horizontal") {
+          shape.Flip(1 /* cdrFlipHorizontal */);
+        } else if (args.direction === "vertical") {
+          shape.Flip(2 /* cdrFlipVertical */);
+        } else {
+          cb({ error: "Неизвестное направление отзеркаливания: " + args.direction });
+          return;
+        }
+        cb({ ok: true, direction: args.direction });
+      } catch (e) {
+        cb({ error: "Ошибка отзеркаливания объекта: " + e.message });
+      }
+    },
+
     set_position: function (args, cb) {
       try {
         var shape = requireShape(args.ref);
-        shape.SetPosition(args.x, args.y); // confirmed method
+        var targetX = args.x;
+        var targetY = args.y;
+        var anchor = args.anchor || "top_left";
+        var w = shape.SizeWidth || 0;
+        var h = shape.SizeHeight || 0;
+
+        if (anchor === "center") {
+          targetX = targetX - w / 2;
+          targetY = targetY + h / 2;
+        } else if (anchor === "bottom_left") {
+          targetY = targetY + h;
+        } else if (anchor === "top_right") {
+          targetX = targetX - w;
+        } else if (anchor === "bottom_right") {
+          targetX = targetX - w;
+          targetY = targetY + h;
+        }
+
+        shape.SetPosition(targetX, targetY);
         var unitName = "";
         try {
           var doc = activeDoc();
@@ -578,7 +660,7 @@
             unitName = getUnitName(doc.Unit);
           }
         } catch (e) {}
-        cb({ ok: true, x: args.x, y: args.y, unit: unitName });
+        cb({ ok: true, x: args.x, y: args.y, anchor: anchor, unit: unitName });
       } catch (e) {
         cb({ error: "Ошибка установки позиции: " + e.message });
       }
@@ -587,7 +669,7 @@
     set_size: function (args, cb) {
       try {
         var shape = requireShape(args.ref);
-        shape.SetSize(args.width, args.height); // confirmed method
+        shape.SetSize(args.width, args.height);
         var unitName = "";
         try {
           var doc = activeDoc();
@@ -604,7 +686,7 @@
     rotate: function (args, cb) {
       try {
         var shape = requireShape(args.ref);
-        shape.Rotate(args.angle); // confirmed method
+        shape.Rotate(args.angle);
         cb({ ok: true, angle: args.angle });
       } catch (e) {
         cb({ error: "Ошибка поворота объекта: " + e.message });
@@ -614,7 +696,7 @@
     duplicate: function (args, cb) {
       try {
         var shape = requireShape(args.ref);
-        var copy = shape.Duplicate(); // confirmed method
+        var copy = shape.Duplicate();
         if (!copy) {
           cb({ error: "Не удалось дублировать объект." });
           return;
@@ -629,7 +711,7 @@
     delete_shape: function (args, cb) {
       try {
         var shape = requireShape(args.ref);
-        shape.Delete(); // confirmed method
+        shape.Delete();
         delete shapeRegistry[args.ref];
         cb({ ok: true });
       } catch (e) {
@@ -640,7 +722,7 @@
     convert_to_curves: function (args, cb) {
       try {
         var shape = requireShape(args.ref);
-        shape.ConvertToCurves(); // confirmed method
+        shape.ConvertToCurves();
         cb({ ok: true });
       } catch (e) {
         cb({ error: "Ошибка преобразования в кривые: " + e.message });
@@ -650,7 +732,7 @@
     order: function (args, cb) {
       try {
         var shape = requireShape(args.ref);
-        var mode = args.mode; // "front" | "back" | "forward" | "backward"
+        var mode = args.mode;
         if (mode === "front") {
           shape.OrderToFront();
         } else if (mode === "back") {
@@ -659,6 +741,17 @@
           shape.OrderForwardOne();
         } else if (mode === "backward") {
           shape.OrderBackOne();
+        } else if (mode === "in_front_of" || mode === "behind") {
+          if (!args.target_ref) {
+            cb({ error: "Для режима " + mode + " требуется параметр target_ref." });
+            return;
+          }
+          var targetShape = requireShape(args.target_ref);
+          if (mode === "in_front_of") {
+            shape.OrderToFrontOf(targetShape);
+          } else {
+            shape.OrderToBackOf(targetShape);
+          }
         } else {
           cb({ error: "Неизвестный режим порядка: " + mode });
           return;
@@ -681,9 +774,6 @@
     },
 
     import_svg: function (args, cb) {
-      // args.svg_path is written by the backend just before this handler
-      // runs (see the special case in executeToolCall below) — the model
-      // only ever produces raw SVG text, never a path.
       var doc = activeDoc();
       if (!doc) {
         cb({ error: "Нет открытого документа в CorelDRAW." });
@@ -695,7 +785,7 @@
           cb({ error: "Не удалось получить активный слой документа." });
           return;
         }
-        var imported = layer.ImportEx(args.svg_path); // Confirmed CorelDRAW Layer.ImportEx(FileName) method
+        var imported = layer.ImportEx(args.svg_path);
         var newRef = null;
         try {
           if (imported && imported.Shapes && imported.Shapes.Count > 0) {
@@ -720,8 +810,59 @@
       }
     },
 
-    // Bitmap.Trace signature and cdrTraceType values confirmed against
-    // community.coreldraw.com/sdk/api/draw/20/m/bitmap.trace and .../e/cdrTraceType.
+    replace_shape_svg: function (args, cb) {
+      try {
+        var oldShape = requireShape(args.ref);
+        var posX = oldShape.PositionX;
+        var posY = oldShape.PositionY;
+        var width = oldShape.SizeWidth;
+        var height = oldShape.SizeHeight;
+        var preserveSize = args.preserve_size !== false;
+
+        var doc = activeDoc();
+        if (!doc) {
+          cb({ error: "Нет открытого документа в CorelDRAW." });
+          return;
+        }
+        var layer = doc.ActiveLayer;
+        if (!layer) {
+          cb({ error: "Не удалось получить активный слой документа." });
+          return;
+        }
+        var imported = layer.ImportEx(args.svg_path);
+        var newShape = null;
+        if (imported && imported.Shapes && imported.Shapes.Count > 0) {
+          newShape = imported.Shapes.Item(1);
+        }
+        if (!newShape) {
+          cb({ error: "Не удалось импортировать новый SVG для замены." });
+          return;
+        }
+        var newRef = ensureShapeName(newShape);
+        newShape.SetPosition(posX, posY);
+        if (preserveSize && width > 0 && height > 0) {
+          newShape.SetSize(width, height);
+        }
+        try { newShape.OrderToFrontOf(oldShape); } catch (eOrd) {}
+        oldShape.Delete();
+        delete shapeRegistry[args.ref];
+
+        cb({ ok: true, new_ref: newRef });
+      } catch (e) {
+        cb({ error: "Ошибка при замене объекта SVG: " + e.message });
+      }
+    },
+
+    get_object_info: function (args, cb) {
+      try {
+        var shape = requireShape(args.ref);
+        var info = readShapeProperties(shape);
+        cb({ ok: true, info: info });
+      } catch (e) {
+        cb({ error: "Ошибка получения информации об объекте: " + e.message });
+      }
+    },
+
     trace_bitmap: function (args, cb) {
       try {
         var shape = requireShape(args.ref);
@@ -741,7 +882,7 @@
           technical: 7,
           line_drawing: 8,
         };
-        var traceType = styleMap[args.style] || 6; // default: high_quality_image
+        var traceType = styleMap[args.style] || 6;
         var bitmap = shape.Bitmap;
         if (!bitmap) {
           cb({ error: "Объект не содержит растровых данных (shape.Bitmap недоступен)." });
@@ -794,8 +935,36 @@
           cb({ error: "Объект не содержит текстовых данных (shape.Text.Story недоступен)." });
           return;
         }
-        shape.Text.Story.Text = args.text || "";
-        cb({ ok: true, text: args.text || "" });
+        if (typeof args.text === "string") {
+          shape.Text.Story.Text = args.text;
+        }
+        var textStory = shape.Text.Story;
+        if (args.font_name && textStory.Font) {
+          try { textStory.Font = args.font_name; } catch (eF) {}
+        }
+        if (typeof args.font_size === "number" && textStory.Size) {
+          try { textStory.Size = args.font_size; } catch (eS) {}
+        }
+        if (args.alignment && textStory.Alignment) {
+          var alignMap = { left: 1, center: 2, right: 3, justify: 4 };
+          if (alignMap[args.alignment]) {
+            try { textStory.Alignment = alignMap[args.alignment]; } catch (eA) {}
+          }
+        }
+        if (args.cmyk_color && textStory.Fill) {
+          try {
+            var cmyk = args.cmyk_color;
+            var cCmyk = cdrApp().CreateColorEx(2 /* cdrColorCMYK */, cmyk.c, cmyk.m, cmyk.y, cmyk.k);
+            textStory.Fill.ApplyUniformFill(cCmyk);
+          } catch (eCmyk) {}
+        } else if (args.hex_color && textStory.Fill) {
+          try {
+            var rgb = hexToRgb(args.hex_color);
+            var cRgb = cdrApp().CreateColorEx(1 /* cdrColorRGB */, rgb.r, rgb.g, rgb.b, 0);
+            textStory.Fill.ApplyUniformFill(cRgb);
+          } catch (eRgb) {}
+        }
+        cb({ ok: true, text: shape.Text.Story.Text });
       } catch (e) {
         cb({ error: "Не удалось изменить текст: " + e.message });
       }
@@ -884,6 +1053,37 @@
         cb({ ok: true });
       } catch (e) {
         cb({ error: "Ошибка выравнивания объектов: " + e.message });
+      }
+    },
+
+    distribute_objects: function (args, cb) {
+      try {
+        if (!args || !args.refs || !args.refs.length) {
+          cb({ error: "Не переданы объекты для распределения." });
+          return;
+        }
+        var sr = cdrApp().CreateShapeRange();
+        var i, s;
+        for (i = 0; i < args.refs.length; i += 1) {
+          s = findShapeByRef(args.refs[i]);
+          if (s) {
+            sr.Add(s);
+          }
+        }
+        if (sr.Count === 0) {
+          cb({ error: "Не найдено объектов для распределения." });
+          return;
+        }
+        var isH = args.direction === "horizontal";
+        var isSpaces = args.mode === "equal_spaces";
+        if (isH) {
+          sr.AlignAndDistribute(0, 0, 0, isSpaces ? 4 : 2, 0);
+        } else {
+          sr.AlignAndDistribute(0, 0, 0, 0, isSpaces ? 4 : 2);
+        }
+        cb({ ok: true });
+      } catch (e) {
+        cb({ error: "Ошибка распределения объектов: " + e.message });
       }
     },
   };
@@ -1520,15 +1720,17 @@
       return;
     }
 
-    if (call.name === "import_svg") {
+    if (call.name === "import_svg" || call.name === "replace_shape_svg") {
       postJSON(
         "/prepare_import",
         { svg: call.arguments.svg },
         function (prep) {
           var argsWithPath = {
+            ref: call.arguments.ref,
             svg_path: prep.path,
             x: call.arguments.x,
             y: call.arguments.y,
+            preserve_size: call.arguments.preserve_size,
           };
           try {
             handler(argsWithPath, finish);
