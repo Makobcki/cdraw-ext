@@ -12,12 +12,56 @@
 <body>
   <div id="layout">
     <div id="topControls">
-      <button id="toggleSidebarBtn" title="Меню">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-      </button>
-      <button id="newChatBtn" title="Новый чат">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14m-7-7h14"/></svg>
-      </button>
+      <div class="top-controls-left">
+        <button id="toggleSidebarBtn" title="Меню">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        </button>
+        <button id="newChatBtn" title="Новый чат">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14m-7-7h14"/></svg>
+        </button>
+      </div>
+      <div class="top-controls-right">
+        <div id="connectionStatusBadge" class="connection-badge standalone-mode" title="Статус подключения к CorelDRAW">
+          <span class="status-dot"></span>
+          <span id="connectionStatusText" class="status-text">Web</span>
+        </div>
+        <button id="toggleCanvasBtn" class="canvas-toggle-btn" title="Виртуальный холст CorelDRAW" style="display:none;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          <span class="canvas-badge-count" id="canvasShapeCount" style="display:none;">0</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Virtual CorelDRAW Canvas Drawer Panel -->
+    <div id="virtualCanvasPanel" class="virtual-canvas-panel" style="display: none;">
+      <div class="virtual-canvas-header">
+        <div class="virtual-canvas-title">
+          <span>Холст CorelDRAW</span>
+        </div>
+        <div class="virtual-canvas-actions">
+          <button id="clearVirtualCanvasBtn" class="canvas-action-btn" title="Очистить холст">Очистить</button>
+          <button id="closeVirtualCanvasBtn" class="canvas-close-btn" title="Свернуть">✕</button>
+        </div>
+      </div>
+      <div class="virtual-canvas-body">
+        <div id="virtualCanvasViewport" class="virtual-canvas-viewport">
+          <svg id="virtualCanvasSvg" viewBox="0 0 500 400" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="canvasGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#262626" stroke-width="1"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#canvasGrid)" />
+            <g id="virtualCanvasObjectsGroup"></g>
+          </svg>
+        </div>
+        <div id="virtualCanvasObjectsList" class="virtual-canvas-objects-list">
+          <div class="objects-list-title">Объекты:</div>
+          <div id="virtualCanvasShapesContainer" class="shapes-chips-container">
+            <span class="empty-shapes-hint">Холст пуст.</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div id="sidebarOverlay" style="display:none;"></div>
@@ -69,13 +113,21 @@
       <div id="messages">
         <div id="messagesInner">
           <div id="splashScreen">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <path d="M12 16v-4"></path>
-              <path d="M12 8h.01"></path>
-            </svg>
-            <div class="splash-title">AI Assistant</div>
-            <div class="splash-subtitle">Выберите объект в CorelDRAW и задайте вопрос или попросите изменить дизайн</div>
+            <div class="splash-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4da6ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 16v-4"></path>
+                <path d="M12 8h.01"></path>
+              </svg>
+            </div>
+            <div class="splash-title">AI Assistant for CorelDRAW</div>
+            <div class="splash-subtitle">Выберите объект в документе или попросите сгенерировать дизайн</div>
+            
+            <div class="prompt-suggestions">
+              <button class="prompt-chip" data-prompt="Создай красный круг размером 50х50 мм по центру">Красный круг 50x50 мм</button>
+              <button class="prompt-chip" data-prompt="Нарисуй синий прямоугольник 100х60 мм">Синий прямоугольник</button>
+              <button class="prompt-chip" data-prompt="Создай золотую пятиконечную звезду">Золотая звезда</button>
+            </div>
           </div>
         </div>
       </div>
