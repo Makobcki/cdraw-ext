@@ -47,6 +47,7 @@ PRESERVE_FILES = {
     "version.json",
     "chats.json",
     "hidden_models.json",
+    "config.json",
 }
 
 
