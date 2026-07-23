@@ -1,7 +1,7 @@
 [
   {
     "name": "set_fill_color",
-    "description": "Задать сплошную заливку объекта.",
+    "description": "Задать сплошную заливку объекта. Если документ находится в CMYK-режиме, RGB-цвет автоматически конвертируется в соответствующий эквивалент CMYK.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -11,13 +11,81 @@
         },
         "hex_color": {
           "type": "string",
-          "description": "Цвет в формате #RRGGBB"
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "description": "Цвет заливки в формате #RRGGBB"
+        },
+        "cmyk_color": {
+          "type": "object",
+          "description": "Цвет заливки в формате CMYK (значения каналов от 0 до 100)",
+          "properties": {
+            "c": { "type": "number", "minimum": 0, "maximum": 100 },
+            "m": { "type": "number", "minimum": 0, "maximum": 100 },
+            "y": { "type": "number", "minimum": 0, "maximum": 100 },
+            "k": { "type": "number", "minimum": 0, "maximum": 100 }
+          },
+          "required": ["c", "m", "y", "k"]
         }
       },
-      "required": [
-        "ref",
-        "hex_color"
-      ]
+      "required": ["ref"]
+    }
+  },
+  {
+    "name": "set_outline",
+    "description": "Задать параметры обводки (абриса) объекта: цвет, толщину и стиль линии.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Идентификатор объекта"
+        },
+        "hex_color": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "description": "Цвет обводки в формате #RRGGBB"
+        },
+        "cmyk_color": {
+          "type": "object",
+          "description": "Цвет обводки в формате CMYK (значения каналов от 0 до 100)",
+          "properties": {
+            "c": { "type": "number", "minimum": 0, "maximum": 100 },
+            "m": { "type": "number", "minimum": 0, "maximum": 100 },
+            "y": { "type": "number", "minimum": 0, "maximum": 100 },
+            "k": { "type": "number", "minimum": 0, "maximum": 100 }
+          },
+          "required": ["c", "m", "y", "k"]
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Толщина линии обводки в единицах документа (doc.Unit)"
+        },
+        "style": {
+          "type": "string",
+          "enum": ["solid", "dash", "dot", "dash_dot"],
+          "description": "Стиль линии: сплошная (solid), пунктир (dash), точки (dot) или штрихпунктир (dash_dot)"
+        }
+      },
+      "required": ["ref"]
+    }
+  },
+  {
+    "name": "flip",
+    "description": "Зеркально отразить объект по горизонтали или вертикали относительно его центра.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Идентификатор объекта"
+        },
+        "direction": {
+          "type": "string",
+          "enum": ["horizontal", "vertical"],
+          "description": "Направление отражения: horizontal (горизонтально) или vertical (вертикально)"
+        }
+      },
+      "required": ["ref", "direction"]
     }
   },
   {
@@ -50,11 +118,7 @@
           "description": "Опорная точка привязки объекта (по умолчанию top_left)"
         }
       },
-      "required": [
-        "ref",
-        "x",
-        "y"
-      ]
+      "required": ["ref", "x", "y"]
     }
   },
   {
@@ -69,10 +133,12 @@
         },
         "width": {
           "type": "number",
+          "exclusiveMinimum": 0,
           "description": "Новая ширина объекта в единицах документа"
         },
         "height": {
           "type": "number",
+          "exclusiveMinimum": 0,
           "description": "Новая высота объекта в единицах документа"
         },
         "keep_aspect_ratio": {
@@ -84,16 +150,14 @@
           "enum": [
             "top_left",
             "center",
-            "bottom_left"
+            "bottom_left",
+            "top_right",
+            "bottom_right"
           ],
           "description": "Опорная точка при изменении размера (по умолчанию top_left)"
         }
       },
-      "required": [
-        "ref",
-        "width",
-        "height"
-      ]
+      "required": ["ref", "width", "height"]
     }
   },
   {
@@ -122,10 +186,7 @@
           "description": "Точка пивота вращения (по умолчанию center)"
         }
       },
-      "required": [
-        "ref",
-        "angle"
-      ]
+      "required": ["ref", "angle"]
     }
   },
   {
@@ -147,9 +208,7 @@
           "description": "Смещение новой копии по вертикали Y (по умолчанию 0)"
         }
       },
-      "required": [
-        "ref"
-      ]
+      "required": ["ref"]
     }
   },
   {
@@ -163,9 +222,7 @@
           "description": "Идентификатор объекта"
         }
       },
-      "required": [
-        "ref"
-      ]
+      "required": ["ref"]
     }
   },
   {
@@ -179,14 +236,12 @@
           "description": "Идентификатор объекта"
         }
       },
-      "required": [
-        "ref"
-      ]
+      "required": ["ref"]
     }
   },
   {
     "name": "order",
-    "description": "Изменить порядок наложения объекта в слое.",
+    "description": "Изменить порядок наложения объекта в слое. Позволяет перемещать относительно слоев (front/back/forward/backward) или относительно конкретного целевого объекта (in_front_of/behind).",
     "parameters": {
       "type": "object",
       "properties": {
@@ -200,15 +255,18 @@
             "front",
             "back",
             "forward",
-            "backward"
+            "backward",
+            "in_front_of",
+            "behind"
           ],
-          "description": "Направление перемещения"
+          "description": "Направление или режим перемещения"
+        },
+        "target_ref": {
+          "type": "string",
+          "description": "Идентификатор целевого объекта (обязателен при режиме in_front_of или behind)"
         }
       },
-      "required": [
-        "ref",
-        "mode"
-      ]
+      "required": ["ref", "mode"]
     }
   },
   {
@@ -222,14 +280,12 @@
           "description": "Идентификатор объекта"
         }
       },
-      "required": [
-        "ref"
-      ]
+      "required": ["ref"]
     }
   },
   {
     "name": "import_svg",
-    "description": "Создать новый векторный объект из SVG-разметки. Если координаты x и y не указаны, созданный объект автоматически размещается по центру выделения или страницы.",
+    "description": "Создать новый векторный объект из SVG-разметки. Если координаты x и y не указаны, новый объект автоматически размещается по центру выделения или страницы.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -244,16 +300,25 @@
         "y": {
           "type": "number",
           "description": "Координата Y размещения (опционально)"
+        },
+        "anchor": {
+          "type": "string",
+          "enum": [
+            "top_left",
+            "center",
+            "bottom_left",
+            "top_right",
+            "bottom_right"
+          ],
+          "description": "Опорная точка нового SVG при размещении в (x, y) (по умолчанию top_left)"
         }
       },
-      "required": [
-        "svg"
-      ]
+      "required": ["svg"]
     }
   },
   {
     "name": "replace_shape_svg",
-    "description": "Заменить существующий объект новым SVG-контуром на месте. Старый объект удаляется, а новый размещается точно на его месте с сохранением координат (x, y) и порядка наложения (z-order).",
+    "description": "Заменить существующий объект новым SVG-контуром на месте. Старый объект удаляется, а новый размещается точно на его месте с сохранением координат и порядка наложения (z-order). По умолчанию новый SVG автоматически масштабируется под габариты старого объекта (preserve_size=true).",
     "parameters": {
       "type": "object",
       "properties": {
@@ -264,12 +329,27 @@
         "svg": {
           "type": "string",
           "description": "Новая векторная SVG-разметка"
+        },
+        "preserve_size": {
+          "type": "boolean",
+          "description": "Масштабировать новый SVG под габариты (ширину и высоту) старого объекта (по умолчанию true). При false вставляется в оригинальном размере viewBox."
         }
       },
-      "required": [
-        "ref",
-        "svg"
-      ]
+      "required": ["ref", "svg"]
+    }
+  },
+  {
+    "name": "get_object_info",
+    "description": "Получить подробную информацию и текущие физические свойства выбранного объекта: тип фигуры, координаты (x, y), размеры (width, height), угол поворота, цвета заливки/обводки, слой и порядок наложения.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Идентификатор объекта"
+        }
+      },
+      "required": ["ref"]
     }
   },
   {
@@ -297,10 +377,7 @@
           "description": "Пресет трассировки (соответствует стилям PowerTRACE)"
         }
       },
-      "required": [
-        "ref",
-        "style"
-      ]
+      "required": ["ref", "style"]
     }
   },
   {
@@ -314,7 +391,7 @@
   },
   {
     "name": "set_text",
-    "description": "Изменить содержимое текстового блока, а также опционально его гарнитуру, размер, цвет и выравнивание.",
+    "description": "Изменить содержимое текстового блока, а также опционально его гарнитуру, размер, цвет и выравнивание. Параметры стилизации (font_name, font_size, hex_color, alignment) применяются ко всему текстовому блоку целиком.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -332,26 +409,32 @@
         },
         "font_size": {
           "type": "number",
+          "exclusiveMinimum": 0,
           "description": "Кегль (размер шрифта) в пунктах (pt)"
         },
         "hex_color": {
           "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
           "description": "Цвет текста в формате #RRGGBB"
+        },
+        "cmyk_color": {
+          "type": "object",
+          "description": "Цвет текста в формате CMYK (каналы 0..100)",
+          "properties": {
+            "c": { "type": "number", "minimum": 0, "maximum": 100 },
+            "m": { "type": "number", "minimum": 0, "maximum": 100 },
+            "y": { "type": "number", "minimum": 0, "maximum": 100 },
+            "k": { "type": "number", "minimum": 0, "maximum": 100 }
+          },
+          "required": ["c", "m", "y", "k"]
         },
         "alignment": {
           "type": "string",
-          "enum": [
-            "left",
-            "center",
-            "right",
-            "justify"
-          ],
+          "enum": ["left", "center", "right", "justify"],
           "description": "Выравнивание текста"
         }
       },
-      "required": [
-        "ref"
-      ]
+      "required": ["ref"]
     }
   },
   {
@@ -368,9 +451,7 @@
           "description": "Список идентификаторов объектов для группировки"
         }
       },
-      "required": [
-        "refs"
-      ]
+      "required": ["refs"]
     }
   },
   {
@@ -384,9 +465,7 @@
           "description": "Идентификатор группы объектов"
         }
       },
-      "required": [
-        "ref"
-      ]
+      "required": ["ref"]
     }
   },
   {
@@ -404,36 +483,21 @@
         },
         "align_h": {
           "type": "string",
-          "enum": [
-            "left",
-            "center",
-            "right",
-            "none"
-          ],
+          "enum": ["left", "center", "right", "none"],
           "description": "Выравнивание по горизонтали: left, center, right"
         },
         "align_v": {
           "type": "string",
-          "enum": [
-            "top",
-            "center",
-            "bottom",
-            "none"
-          ],
+          "enum": ["top", "center", "bottom", "none"],
           "description": "Выравнивание по вертикали: top, center, bottom"
         },
         "relative_to": {
           "type": "string",
-          "enum": [
-            "selection",
-            "page"
-          ],
+          "enum": ["selection", "page"],
           "description": "Относительно выделения или страницы (по умолчанию selection)"
         }
       },
-      "required": [
-        "refs"
-      ]
+      "required": ["refs"]
     }
   },
   {
@@ -451,25 +515,16 @@
         },
         "direction": {
           "type": "string",
-          "enum": [
-            "horizontal",
-            "vertical"
-          ],
+          "enum": ["horizontal", "vertical"],
           "description": "Направление распределения: горизонтально или вертикально"
         },
         "mode": {
           "type": "string",
-          "enum": [
-            "equal_spaces",
-            "equal_centers"
-          ],
+          "enum": ["equal_spaces", "equal_centers"],
           "description": "Режим: равные интервалы между гранями (equal_spaces) или между центрами (equal_centers)"
         }
       },
-      "required": [
-        "refs",
-        "direction"
-      ]
+      "required": ["refs", "direction"]
     }
   }
 ]
