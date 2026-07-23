@@ -8,7 +8,26 @@ CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 
 DEFAULT_CONFIG = {
     "ai_model": "gemini-3.1-pro-low",
+    "server_host": "127.0.0.1",
+    "server_port": 5055,
+    "browser_emulation_version": 11001,
+    "max_svg_char_limit": 6000,
+    "model_hover_delay_ms": 1200,
+    "update_url": "https://raw.githubusercontent.com/Makobcki/cdraw-ext/main/backend/version.json",
+    "download_url": "https://github.com/Makobcki/cdraw-ext/archive/refs/heads/main.zip",
     "model_blacklist_keywords": ["chat_", "flash_lite", "2.5 pro", "flash lite"],
+    "preserve_files": [
+        ".venv",
+        "backups",
+        "oauth_config.json",
+        "multi_accounts.json",
+        ".env",
+        "version.json",
+        "chats.json",
+        "hidden_models.json",
+        "config.json",
+    ],
+    "shared_temp_dir": os.path.join(os.environ.get("TEMP", "C:\\Temp"), "cdr_ai_agent"),
     "system_prompt": """# ROLE
 You are a design assistant embedded in CorelDRAW 2018. You help the user work with objects in their document and can act directly on the document through tool calls.
 
@@ -33,7 +52,6 @@ Before any irreversible or broad action (deleting objects, bulk edits affecting 
 - Be concise. Avoid restating the user's request back to them.
 - Respond in the same language the user writes in.
 - Reference only features and tools actually available in CorelDRAW 2018; do not suggest capabilities from newer versions.""",
-    "shared_temp_dir": os.path.join(os.environ.get("TEMP", "C:\\Temp"), "cdr_ai_agent"),
 }
 
 
@@ -60,6 +78,21 @@ AI_MODEL = os.environ.get(
     "AI_MODEL", _loaded_cfg.get("ai_model", DEFAULT_CONFIG["ai_model"])
 )
 SYSTEM_PROMPT = _loaded_cfg.get("system_prompt", DEFAULT_CONFIG["system_prompt"])
+
+SERVER_HOST = os.environ.get("SERVER_HOST", _loaded_cfg.get("server_host", 5055))
+SERVER_PORT = int(os.environ.get("SERVER_PORT", _loaded_cfg.get("server_port", 5055)))
+BROWSER_EMULATION_VERSION = int(
+    _loaded_cfg.get("browser_emulation_version", DEFAULT_CONFIG["browser_emulation_version"])
+)
+MAX_SVG_CHAR_LIMIT = int(
+    _loaded_cfg.get("max_svg_char_limit", DEFAULT_CONFIG["max_svg_char_limit"])
+)
+MODEL_HOVER_DELAY_MS = int(
+    _loaded_cfg.get("model_hover_delay_ms", DEFAULT_CONFIG["model_hover_delay_ms"])
+)
+UPDATE_URL = _loaded_cfg.get("update_url", DEFAULT_CONFIG["update_url"])
+DOWNLOAD_URL = _loaded_cfg.get("download_url", DEFAULT_CONFIG["download_url"])
+PRESERVE_FILES = set(_loaded_cfg.get("preserve_files", DEFAULT_CONFIG["preserve_files"]))
 
 SHARED_TEMP_DIR = os.environ.get(
     "CDR_AGENT_TEMP",
