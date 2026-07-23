@@ -311,6 +311,263 @@
 
   var isCommandGroupOpen = false;
 
+  function isCdrAvailable() {
+    try {
+      if (window.external && window.external.Application) return true;
+      if (window.CorelDRAW && window.CorelDRAW.Application) return true;
+      if (typeof CorelDRAW !== "undefined" && CorelDRAW.Application) return true;
+    } catch (e) {}
+    return false;
+  }
+
+  // ---------------------------------------------------------------
+  // Virtual CorelDRAW Sandbox Engine (Standalone Browser Preview)
+  // ---------------------------------------------------------------
+  var virtualShapes = [];
+  var virtualShapeCounter = 0;
+  var isVirtualCanvasOpen = false;
+
+  function updateConnectionStatus() {
+    var badge = byId("connectionStatusBadge");
+    var text = byId("connectionStatusText");
+    var toggleBtn = byId("toggleCanvasBtn");
+    if (!badge || !text) return;
+
+    if (isCdrAvailable()) {
+      badge.className = "connection-badge connected-mode";
+      badge.title = "CorelDRAW 2018 подключён напрямую";
+      text.innerText = "CorelDRAW";
+      if (toggleBtn) toggleBtn.style.display = "none";
+    } else {
+      badge.className = "connection-badge standalone-mode";
+      badge.title = "Автономная песочница (веб-версия без CorelDRAW)";
+      text.innerText = "Web";
+      if (toggleBtn) toggleBtn.style.display = "inline-flex";
+    }
+  }
+
+  function toggleVirtualCanvas(show) {
+    var panel = byId("virtualCanvasPanel");
+    if (!panel) return;
+    if (typeof show === "boolean") {
+      isVirtualCanvasOpen = show;
+    } else {
+      isVirtualCanvasOpen = !isVirtualCanvasOpen;
+    }
+    panel.style.display = isVirtualCanvasOpen ? "block" : "none";
+  }
+
+  function renderVirtualCanvas() {
+    var group = byId("virtualCanvasObjectsGroup");
+    var countBadge = byId("canvasShapeCount");
+    var container = byId("virtualCanvasShapesContainer");
+    if (!group) return;
+
+    group.innerHTML = "";
+    if (countBadge) {
+      countBadge.innerText = virtualShapes.length;
+      countBadge.style.display = virtualShapes.length > 0 ? "inline-block" : "none";
+    }
+
+    if (!container) return;
+    if (virtualShapes.length === 0) {
+      container.innerHTML = '<span class="empty-shapes-hint">Холст пуст. Напишите агенту команду создать фигуру!</span>';
+      return;
+    }
+
+    container.innerHTML = "";
+    var i;
+    for (i = 0; i < virtualShapes.length; i++) {
+      var shape = virtualShapes[i];
+      
+      try {
+        var parser = new DOMParser();
+        var svgDoc = parser.parseFromString(
+          '<svg xmlns="http://www.w3.org/2000/svg">' + shape.svg + '</svg>',
+          "image/svg+xml"
+        );
+        var svgNode = svgDoc.documentElement.firstChild;
+        if (svgNode) {
+          var importedNode = document.importNode(svgNode, true);
+          var posX = shape.x || 150;
+          var posY = shape.y || 100;
+          var rot = shape.angle || 0;
+          importedNode.setAttribute("transform", "translate(" + posX + ", " + posY + ") rotate(" + rot + ")");
+          group.appendChild(importedNode);
+        }
+      } catch (eSvg) {
+        /* fallback */
+      }
+
+      var chip = document.createElement("div");
+      chip.className = "shape-item-chip";
+      chip.title = shape.ref + ": Нажмите чтобы прикрепить";
+      
+      var dot = document.createElement("span");
+      dot.className = "shape-color-preview";
+      dot.style.background = shape.fillColor || "#4da6ff";
+      
+      var nameSpan = document.createElement("span");
+      nameSpan.innerText = shape.ref + " (" + (shape.name || "SVG") + ")";
+      
+      chip.appendChild(dot);
+      chip.appendChild(nameSpan);
+
+      (function(s) {
+        chip.onclick = function() {
+          attachVirtualShape(s);
+        };
+      })(shape);
+
+      container.appendChild(chip);
+    }
+  }
+
+  function addVirtualShapeFromSvg(rawSvg, nameHint) {
+    virtualShapeCounter += 1;
+    var ref = "Shape_" + virtualShapeCounter;
+    
+    var fillColor = "#4da6ff";
+    var colorMatch = rawSvg.match(/fill=["']([^"']+)["']/i);
+    if (colorMatch && colorMatch[1] && colorMatch[1] !== "none") {
+      fillColor = colorMatch[1];
+    }
+
+    var innerContent = rawSvg.replace(/<\/?svg[^>]*>/gi, "");
+    var gSvg = '<g id="' + ref + '">' + innerContent + '</g>';
+
+    var posX = 150 + ((virtualShapeCounter - 1) * 40) % 200;
+    var posY = 100 + ((virtualShapeCounter - 1) * 30) % 150;
+
+    var shapeObj = {
+      ref: ref,
+      name: nameHint || "Объект " + virtualShapeCounter,
+      svg: gSvg,
+      rawSvg: rawSvg,
+      fillColor: fillColor,
+      x: posX,
+      y: posY,
+      width: 50,
+      height: 50,
+      angle: 0
+    };
+
+    virtualShapes.push(shapeObj);
+    renderVirtualCanvas();
+    toggleVirtualCanvas(true);
+    return shapeObj;
+  }
+
+  function updateVirtualShapeFill(targetRef, color) {
+    var i;
+    for (i = 0; i < virtualShapes.length; i++) {
+      if (!targetRef || virtualShapes[i].ref === targetRef) {
+        virtualShapes[i].fillColor = color;
+        virtualShapes[i].svg = virtualShapes[i].svg.replace(/fill=["']([^"']+)["']/g, 'fill="' + color + '"');
+      }
+    }
+    renderVirtualCanvas();
+  }
+
+  function updateVirtualShapePos(targetRef, x, y) {
+    var i;
+    for (i = 0; i < virtualShapes.length; i++) {
+      if (!targetRef || virtualShapes[i].ref === targetRef) {
+        virtualShapes[i].x = x;
+        virtualShapes[i].y = y;
+      }
+    }
+    renderVirtualCanvas();
+  }
+
+  function updateVirtualShapeSize(targetRef, width, height) {
+    var i;
+    for (i = 0; i < virtualShapes.length; i++) {
+      if (!targetRef || virtualShapes[i].ref === targetRef) {
+        virtualShapes[i].width = width;
+        virtualShapes[i].height = height;
+      }
+    }
+    renderVirtualCanvas();
+  }
+
+  function updateVirtualShapeRotation(targetRef, angle) {
+    var i;
+    for (i = 0; i < virtualShapes.length; i++) {
+      if (!targetRef || virtualShapes[i].ref === targetRef) {
+        virtualShapes[i].angle = ((virtualShapes[i].angle || 0) + angle) % 360;
+      }
+    }
+    renderVirtualCanvas();
+  }
+
+  function deleteVirtualShape(targetRef) {
+    var newShapes = [];
+    var i;
+    for (i = 0; i < virtualShapes.length; i++) {
+      if (virtualShapes[i].ref !== targetRef) {
+        newShapes.push(virtualShapes[i]);
+      }
+    }
+    virtualShapes = newShapes;
+    renderVirtualCanvas();
+  }
+
+  function getVirtualShapeSvg(targetRef) {
+    var i;
+    for (i = 0; i < virtualShapes.length; i++) {
+      if (!targetRef || virtualShapes[i].ref === targetRef) {
+        return virtualShapes[i].rawSvg;
+      }
+    }
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50"><circle cx="25" cy="25" r="20" fill="#4da6ff"/></svg>';
+  }
+
+  function duplicateVirtualShape(targetRef) {
+    var i;
+    for (i = 0; i < virtualShapes.length; i++) {
+      if (!targetRef || virtualShapes[i].ref === targetRef) {
+        return addVirtualShapeFromSvg(virtualShapes[i].rawSvg, virtualShapes[i].name + " (копия)");
+      }
+    }
+    return null;
+  }
+
+  function getVirtualShapeInfo(targetRef) {
+    var i;
+    for (i = 0; i < virtualShapes.length; i++) {
+      if (!targetRef || virtualShapes[i].ref === targetRef) {
+        return {
+          ref: virtualShapes[i].ref,
+          typeName: virtualShapes[i].name,
+          width_mm: virtualShapes[i].width,
+          height_mm: virtualShapes[i].height,
+          x_mm: virtualShapes[i].x,
+          y_mm: virtualShapes[i].y
+        };
+      }
+    }
+    return { ref: targetRef || "Shape_1", typeName: "Shape", width_mm: 50, height_mm: 50, x_mm: 100, y_mm: 100 };
+  }
+
+  function attachVirtualShape(shapeObj) {
+    staged.push({
+      ref: shapeObj.ref,
+      name: shapeObj.name + " (" + shapeObj.ref + ")",
+      display_name: shapeObj.name,
+      properties: {
+        width_mm: shapeObj.width,
+        height_mm: shapeObj.height,
+        x_mm: shapeObj.x,
+        y_mm: shapeObj.y,
+        fill_color: shapeObj.fillColor
+      },
+      png_path: "",
+      svg_path: ""
+    });
+    renderTray();
+  }
+
   function cdrApp() {
     if (window.external && window.external.Application) {
       return window.external.Application;
@@ -370,16 +627,39 @@
     }
   }
 
+  function isOldAiName(name) {
+    return /^ai_\d+_\d+$/.test(name) || /^ia_\d+_\d+$/.test(name);
+  }
+
+  function generateShortId() {
+    var chars = "0123456789abcdef";
+    var id;
+    do {
+      id = "obj_";
+      var i;
+      for (i = 0; i < 8; i += 1) {
+        id += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+    } while (shapeRegistry[id]);
+    return id;
+  }
+
   // Gives every shape we touch a stable, unique name so we can find it again
   // in a later turn of the conversation (a live COM reference from
   // shapeRegistry is faster, but may not survive undo/redo or a docker reload,
   // so Name is the durable fallback).
   function ensureShapeName(shape) {
-    var name = shape.Name;
-    if (!name || name.length === 0) {
-      refCounter += 1;
-      name = "ai_" + new Date().getTime() + "_" + refCounter;
-      shape.Name = name;
+    if (!shape) return "";
+    var name = "";
+    try {
+      name = shape.Name;
+    } catch (e) {}
+
+    if (!name || name.length === 0 || isOldAiName(name)) {
+      name = generateShortId();
+      try {
+        shape.Name = name;
+      } catch (e) {}
     }
     shapeRegistry[name] = shape;
     return name;
@@ -436,14 +716,14 @@
       1: "Rectangle",
       2: "Ellipse",
       3: "Curve",
-      4: "Bitmap",
+      4: "Image",
       5: "Text",
       6: "Text",
       7: "Group",
       8: "Selection",
       9: "Guideline",
       11: "Custom",
-      12: "PerfectShape"
+      12: "Shape"
     };
     return types[typeCode] || ("Type_" + typeCode);
   }
@@ -459,9 +739,10 @@
 
   function readShapeProperties(shape) {
     if (!shape) return {};
+    var ref = ensureShapeName(shape);
     var typeCode = shape.Type;
     var typeName = getShapeTypeName(typeCode);
-    var props = { ref: shape.Name, name: shape.Name, typeCode: typeCode, typeName: typeName };
+    var props = { ref: ref, name: ref, typeCode: typeCode, typeName: typeName };
     var unitCode = 5;
     try {
       var doc = activeDoc();
@@ -612,6 +893,12 @@
 
   var TOOL_HANDLERS = {
     set_fill_color: function (args, cb) {
+      if (!isCdrAvailable()) {
+        var color = args.hex_color || (args.cmyk_color ? "#4da6ff" : "#4da6ff");
+        updateVirtualShapeFill(args.ref, color);
+        cb({ ok: true });
+        return;
+      }
       try {
         var shape = requireShape(args.ref);
         if (!shape || !shape.Fill) {
@@ -638,6 +925,10 @@
     },
 
     set_outline: function (args, cb) {
+      if (!isCdrAvailable()) {
+        cb({ ok: true, style: args.style || "solid" });
+        return;
+      }
       try {
         var shape = requireShape(args.ref);
         if (!shape || !shape.Outline) {
@@ -676,6 +967,10 @@
     },
 
     flip: function (args, cb) {
+      if (!isCdrAvailable()) {
+        cb({ ok: true, direction: args.direction || "horizontal" });
+        return;
+      }
       try {
         var shape = requireShape(args.ref);
         if (args.direction === "horizontal") {
@@ -693,6 +988,11 @@
     },
 
     set_position: function (args, cb) {
+      if (!isCdrAvailable()) {
+        updateVirtualShapePos(args.ref, args.x, args.y);
+        cb({ ok: true, x: args.x, y: args.y, anchor: args.anchor || "top_left", unit: "мм" });
+        return;
+      }
       try {
         var shape = requireShape(args.ref);
         var targetX = args.x;
@@ -728,6 +1028,11 @@
     },
 
     set_size: function (args, cb) {
+      if (!isCdrAvailable()) {
+        updateVirtualShapeSize(args.ref, args.width, args.height);
+        cb({ ok: true, width: args.width, height: args.height, unit: "мм" });
+        return;
+      }
       try {
         var shape = requireShape(args.ref);
         shape.SetSize(args.width, args.height);
@@ -745,6 +1050,11 @@
     },
 
     rotate: function (args, cb) {
+      if (!isCdrAvailable()) {
+        updateVirtualShapeRotation(args.ref, args.angle);
+        cb({ ok: true, angle: args.angle });
+        return;
+      }
       try {
         var shape = requireShape(args.ref);
         shape.Rotate(args.angle);
@@ -755,6 +1065,11 @@
     },
 
     duplicate: function (args, cb) {
+      if (!isCdrAvailable()) {
+        var dup = duplicateVirtualShape(args.ref);
+        cb({ ok: true, new_ref: dup ? dup.ref : "Shape_1" });
+        return;
+      }
       try {
         var shape = requireShape(args.ref);
         var copy = shape.Duplicate();
@@ -770,6 +1085,11 @@
     },
 
     delete_shape: function (args, cb) {
+      if (!isCdrAvailable()) {
+        deleteVirtualShape(args.ref);
+        cb({ ok: true });
+        return;
+      }
       try {
         var shape = requireShape(args.ref);
         shape.Delete();
@@ -781,6 +1101,10 @@
     },
 
     convert_to_curves: function (args, cb) {
+      if (!isCdrAvailable()) {
+        cb({ ok: true });
+        return;
+      }
       try {
         var shape = requireShape(args.ref);
         shape.ConvertToCurves();
@@ -791,6 +1115,10 @@
     },
 
     order: function (args, cb) {
+      if (!isCdrAvailable()) {
+        cb({ ok: true });
+        return;
+      }
       try {
         var shape = requireShape(args.ref);
         var mode = args.mode;
@@ -824,6 +1152,10 @@
     },
 
     export_svg: function (args, cb, backendPaths) {
+      if (!isCdrAvailable()) {
+        cb({ ok: true, ref: args.ref, svg: getVirtualShapeSvg(args.ref) });
+        return;
+      }
       try {
         var shape = requireShape(args.ref);
         exportShapeAssets(shape, backendPaths, function () {
@@ -840,6 +1172,12 @@
     },
 
     import_svg: function (args, cb) {
+      if (!isCdrAvailable()) {
+        var svgCode = args.raw_svg || args.svg || '<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50"><circle cx="25" cy="25" r="25" fill="#4da6ff"/></svg>';
+        var vShape = addVirtualShapeFromSvg(svgCode, "Векторный объект");
+        cb({ ok: true, new_ref: vShape.ref });
+        return;
+      }
       var doc = activeDoc();
       if (!doc) {
         cb({ error: "Нет открытого документа в CorelDRAW." });
@@ -920,6 +1258,10 @@
     },
 
     get_object_info: function (args, cb) {
+      if (!isCdrAvailable()) {
+        cb({ ok: true, info: getVirtualShapeInfo(args.ref) });
+        return;
+      }
       try {
         var shape = requireShape(args.ref);
         var info = readShapeProperties(shape);
@@ -974,6 +1316,18 @@
     },
 
     get_page_info: function (args, cb) {
+      if (!isCdrAvailable()) {
+        cb({
+          ok: true,
+          width_mm: 210,
+          height_mm: 297,
+          size_formatted: "A4 (210 x 297 мм) [Песочница Web]",
+          unit: "мм",
+          shapes_count: virtualShapes.length,
+          shapes: virtualShapes
+        });
+        return;
+      }
       try {
         var doc = activeDoc();
         if (!doc) {
@@ -1219,6 +1573,9 @@
   }
 
   function addMessage(role, text) {
+    if (!text || (typeof text === "string" && text.trim() === "")) {
+      return null;
+    }
     removeSplash();
     var row = el("div", "msg-row msg-" + role);
     var bubble = el("div", "bubble");
@@ -1248,17 +1605,286 @@
     scrollToBottom();
   }
 
+  function formatToolHeaderTitle(name, args) {
+    if (!args || typeof args !== "object") args = {};
+
+    var refPrefix = args.ref ? args.ref + " " : "";
+    var summary = "";
+    switch (name) {
+      case "trace_bitmap":
+        var styleNameMap = {
+          line_art: "Line art",
+          logo: "Logo",
+          detailed_logo: "Detailed logo",
+          clipart: "Clipart",
+          low_quality_image: "Low quality image",
+          high_quality_image: "High quality image",
+          technical: "Technical",
+          line_drawing: "Line drawing"
+        };
+        var styleStr = styleNameMap[args.style] || args.style || "Image";
+        summary = "Trace(" + refPrefix + styleStr + ")";
+        break;
+
+      case "set_fill_color":
+        var colorStr = args.hex_color || (args.cmyk_color ? "CMYK(" + args.cmyk_color.c + "," + args.cmyk_color.m + "," + args.cmyk_color.y + "," + args.cmyk_color.k + ")" : "color");
+        summary = "Fill(" + refPrefix + colorStr + ")";
+        break;
+
+      case "set_outline":
+        var outColor = args.hex_color || (args.cmyk_color ? "CMYK(" + args.cmyk_color.c + "," + args.cmyk_color.m + ")" : "");
+        var outW = (args.width_mm || args.width) ? (args.width_mm || args.width) + "mm" : "";
+        var outStr = (outW && outColor) ? outW + " " + outColor : (outW || outColor);
+        summary = "Outline(" + refPrefix + outStr + ")";
+        break;
+
+      case "flip":
+        var dirStr = args.direction === "vertical" ? "Vertical" : "Horizontal";
+        summary = "Flip(" + refPrefix + dirStr + ")";
+        break;
+
+      case "set_position":
+        summary = "Move(" + refPrefix + args.x + ", " + args.y + ")";
+        break;
+
+      case "set_size":
+        summary = "Resize(" + refPrefix + args.width + "x" + args.height + ")";
+        break;
+
+      case "rotate":
+        summary = "Rotate(" + refPrefix + args.angle + "°)";
+        break;
+
+      case "duplicate":
+        summary = "Duplicate(" + (args.ref || "") + ")";
+        break;
+
+      case "delete_shape":
+        summary = "Delete(" + (args.ref || "") + ")";
+        break;
+
+      case "convert_to_curves":
+        summary = "Convert to curves(" + (args.ref || "") + ")";
+        break;
+
+      case "order":
+        var modeMap = {
+          front: "Front",
+          back: "Back",
+          forward: "Forward",
+          backward: "Backward",
+          in_front_of: "In front of",
+          behind: "Behind"
+        };
+        var modeStr = modeMap[args.mode] || args.mode || "";
+        var targetStr = args.target_ref ? " -> " + args.target_ref : "";
+        summary = "Order(" + refPrefix + modeStr + targetStr + ")";
+        break;
+
+      case "export_svg":
+        summary = "Export SVG(" + (args.ref || "") + ")";
+        break;
+
+      case "import_svg":
+        var svgContent = args.svg_content || args.svg || "";
+        var svgLen = svgContent.length;
+        var svgHint = svgLen > 0 ? (svgLen > 500 ? Math.round(svgLen/1024*10)/10 + "kb" : svgLen + "b") : "";
+        var locStr = (typeof args.x === "number" && typeof args.y === "number") ? args.x + ", " + args.y : "";
+        var svgParts = [];
+        if (args.ref) svgParts.push(args.ref);
+        if (svgHint) svgParts.push("svg:" + svgHint);
+        if (locStr) svgParts.push("@" + locStr);
+        summary = "Import SVG(" + svgParts.join(" ") + ")";
+        break;
+
+      case "replace_shape_svg":
+        summary = "Replace SVG(" + (args.ref || "") + ")";
+        break;
+
+      case "get_object_info":
+        summary = "Object info(" + (args.ref || "") + ")";
+        break;
+
+      case "get_page_info":
+        summary = "Page info()";
+        break;
+
+      case "set_text":
+        var tPreview = args.text || "";
+        if (tPreview.length > 20) {
+          tPreview = tPreview.substring(0, 17) + "...";
+        }
+        summary = 'Set text(' + refPrefix + '"' + tPreview + '")';
+        break;
+
+      case "group_shapes":
+        var refsStr = args.refs ? args.refs.join(", ") : "";
+        summary = "Group(" + refsStr + ")";
+        break;
+
+      case "ungroup_shapes":
+        summary = "Ungroup(" + (args.ref || "") + ")";
+        break;
+
+      case "align_objects":
+        var alignRefs = args.refs ? args.refs.join(", ") + " " : "";
+        var alignType = args.align_type || "";
+        summary = "Align(" + alignRefs + alignType + ")";
+        break;
+
+      case "distribute_objects":
+        var distRefs = args.refs ? args.refs.join(", ") + " " : "";
+        var distType = args.distribute_type || "";
+        summary = "Distribute(" + distRefs + distType + ")";
+        break;
+
+      default:
+        var formattedName = name.replace(/_/g, " ");
+        formattedName = formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
+        var argKeys = Object.keys(args);
+        var simpleArgs = [];
+        for (var k = 0; k < argKeys.length; k++) {
+          var key = argKeys[k];
+          var val = args[key];
+          if (key === "ref") {
+            simpleArgs.unshift(val); // ref first, without key name
+          } else if (key === "refs" && Array.isArray(val)) {
+            simpleArgs.unshift(val.join(","));
+          } else if (typeof val === "string") {
+            var short = val.length > 30 ? val.substring(0, 28) + "…" : val;
+            simpleArgs.push(key + "=" + short);
+          } else if (typeof val === "number" || typeof val === "boolean") {
+            simpleArgs.push(key + "=" + val);
+          }
+        }
+        summary = formattedName + "(" + simpleArgs.join(", ") + ")";
+        break;
+    }
+
+    var maxHeaderLength = 80;
+    if (summary.length > maxHeaderLength) {
+      if (summary.endsWith(")")) {
+        summary = summary.substring(0, maxHeaderLength - 4) + "…)";
+      } else {
+        summary = summary.substring(0, maxHeaderLength - 1) + "…";
+      }
+    }
+    return summary;
+  }
+
+  function formatHumanReadableResult(name, res) {
+    if (!res) return "Успешно выполнено";
+    if (typeof res === "string") {
+      try {
+        res = JSON.parse(res);
+      } catch (e) {
+        return res;
+      }
+    }
+
+    if (res.error) {
+      return "❌ Ошибка: " + res.error;
+    }
+
+    switch (name) {
+      case "set_fill_color":
+        return "Заливка успешно применена";
+
+      case "set_outline":
+        return "Обводка успешно настроена";
+
+      case "flip":
+        return "Объект успешно отзеркален" + (res.direction ? " (" + res.direction + ")" : "");
+
+      case "set_position":
+        if (typeof res.x === "number" && typeof res.y === "number") {
+          return "Позиция изменена на (" + res.x + ", " + res.y + ")";
+        }
+        return "Позиция объекта изменена";
+
+      case "set_size":
+        if (typeof res.width === "number" && typeof res.height === "number") {
+          return "Размер изменён на " + res.width + " x " + res.height;
+        }
+        return "Размер объекта изменён";
+
+      case "rotate":
+        return "Объект повёрнут на " + (res.angle !== undefined ? res.angle + "°" : "");
+
+      case "duplicate":
+        return "Создана копия объекта: " + (res.new_ref || "");
+
+      case "delete_shape":
+        return "Объект успешно удалён";
+
+      case "convert_to_curves":
+        return "Объект преобразован в кривые";
+
+      case "order":
+        return "Порядок элементов изменён";
+
+      case "export_svg":
+        return "SVG успешно экспортирован";
+
+      case "import_svg":
+        return "SVG импортирован. Создан объект: " + (res.new_ref || "");
+
+      case "replace_shape_svg":
+        return "Объект заменён на SVG. Новый объект: " + (res.new_ref || "");
+
+      case "trace_bitmap":
+        var refs = res.new_refs ? res.new_refs.join(", ") : "";
+        return "Трассировка завершена. Созданы объекты: " + (refs || "—");
+
+      case "get_object_info":
+        if (res.info) {
+          var info = res.info;
+          var parts = [];
+          if (info.typeName) parts.push("Тип: " + info.typeName);
+          if (info.width_mm && info.height_mm) parts.push("Размер: " + info.width_mm + "x" + info.height_mm + " мм");
+          if (info.x_mm !== undefined && info.y_mm !== undefined) parts.push("Позиция: (" + info.x_mm + ", " + info.y_mm + ") мм");
+          if (info.ref) parts.push("ref: " + info.ref);
+          return parts.join(" | ") || "Информация об объекте получена";
+        }
+        return "Информация об объекте получена";
+
+      case "get_page_info":
+        if (res.shapes_count !== undefined) {
+          return "Размер страницы: " + (res.size_formatted || (res.width_mm + "x" + res.height_mm + " мм")) + " | Объектов на странице: " + res.shapes_count;
+        }
+        return "Информация о странице получена";
+
+      case "set_text":
+        return 'Текст изменён: "' + (res.text || "") + '"';
+
+      case "group_shapes":
+        return "Объекты сгруппированы в: " + (res.new_ref || "");
+
+      case "ungroup_shapes":
+        var uRefs = res.new_refs ? res.new_refs.join(", ") : "";
+        return "Разгруппировано. Созданы объекты: " + (uRefs || "—");
+
+      case "align_objects":
+        return "Объекты выровнены";
+
+      case "distribute_objects":
+        return "Объекты распределены";
+
+      default:
+        if (res.ok) return "Операция успешно выполнена";
+        return JSON.stringify(res);
+    }
+  }
+
   function createToolBlock(name, args) {
     removeSplash();
     var row = el("div", "msg-tool-container");
     var bubble = el("div", "msg-tool-bubble");
 
+    var headerTitle = formatToolHeaderTitle(name, args);
     var header = el("div", "msg-tool-header");
-    var title = el(
-      "div",
-      "msg-tool-title",
-      name + "(" + JSON.stringify(args) + ")"
-    );
+    var title = el("div", "msg-tool-title", headerTitle);
+    title.title = headerTitle;
     var toggle = el("div", "msg-tool-toggle", "▼");
 
     header.appendChild(title);
@@ -1266,6 +1892,30 @@
 
     var details = el("div", "msg-tool-details");
     details.style.display = "none";
+
+    var formattedArgsStr = (args && Object.keys(args).length > 0)
+      ? JSON.stringify(args, null, 2)
+      : "{ }";
+
+    var currentResultText = "Выполняется...";
+    var currentIsError = false;
+
+    function renderDetails() {
+      details.innerHTML = "";
+
+      var argsHeader = el("div", "msg-tool-section-title", "Аргументы:");
+      var argsCode = el("pre", "msg-tool-code", formattedArgsStr);
+
+      var resHeader = el("div", "msg-tool-section-title", "Результат:");
+      var resContent = el("div", "msg-tool-res-text" + (currentIsError ? " is-error" : ""), currentResultText);
+
+      details.appendChild(argsHeader);
+      details.appendChild(argsCode);
+      details.appendChild(resHeader);
+      details.appendChild(resContent);
+    }
+
+    renderDetails();
 
     header.onclick = function () {
       if (details.style.display === "none") {
@@ -1285,12 +1935,16 @@
 
     return {
       setResult: function (resStr, isError) {
+        currentIsError = isError;
         if (isError) {
           bubble.className = "msg-tool-bubble is-error";
           details.style.display = "block";
           header.className = "msg-tool-header open";
+          currentResultText = "❌ " + resStr;
+        } else {
+          currentResultText = formatHumanReadableResult(name, resStr);
         }
-        details.textContent = resStr;
+        renderDetails();
         scrollToBottom();
       },
     };
@@ -1305,13 +1959,62 @@
     scrollToBottom();
   }
 
+  function getHumanReadableObjectName(a) {
+    if (!a) return "Object";
+    if (a.display_name) return a.display_name;
+    var props = a.properties || {};
+    var typeCode = props.typeCode;
+    var typeName = props.typeName;
+
+    if (a.ref === "custom") {
+      var name = a.name || "";
+      if (/\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name) || (props.type && props.type.indexOf("image/") === 0)) {
+        return "Image";
+      }
+      return name || "File";
+    }
+
+    if (typeCode === 4 || typeName === "Image" || typeName === "Bitmap") {
+      return "Image";
+    }
+    if (typeCode === 1 || typeName === "Rectangle") {
+      return "Rectangle";
+    }
+    if (typeCode === 2 || typeName === "Ellipse") {
+      return "Ellipse";
+    }
+    if (typeCode === 5 || typeCode === 6 || typeName === "Text") {
+      return "Text";
+    }
+    if (typeCode === 7 || typeName === "Group") {
+      return "Group";
+    }
+    if (typeCode === 3 || typeName === "Curve") {
+      return "Curve";
+    }
+    if (typeCode === 12 || typeName === "Shape" || typeName === "PerfectShape") {
+      return "Shape";
+    }
+
+    if (typeName && typeName !== "NoShape") {
+      return typeName;
+    }
+
+    return "Object";
+  }
+
   function buildAttachCard(a, removable) {
     var card = el("div", "attach-card");
     var thumb = el("div", "thumb");
-    thumb.style.backgroundImage =
-      "url(/temp_image?path=" + encodeURIComponent(a.png_path) + ")";
-    var tag = el("span", "tag", "obj");
-    var label = el("div", "label", a.name);
+    if (a.png_path) {
+      thumb.style.backgroundImage =
+        "url(/temp_image?path=" + encodeURIComponent(a.png_path) + ")";
+    }
+    var humanType = getHumanReadableObjectName(a);
+    var tag = el("span", "tag", humanType);
+    var displayLabel = (a.ref && a.ref !== "custom") ? humanType + " (" + a.ref + ")" : (a.name || humanType);
+    var label = el("div", "label", displayLabel);
+    card.title = (a.ref && a.ref !== "custom") ? humanType + " [" + a.ref + "]" : displayLabel;
     card.appendChild(thumb);
     card.appendChild(tag);
     card.appendChild(label);
@@ -1398,10 +2101,13 @@
       if (xhr.status === 200) {
         try {
           var res = JSON.parse(xhr.responseText);
+          var isImg = /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(res.name) || (file.type && file.type.indexOf("image/") === 0);
+          var humanType = isImg ? "Image" : "File";
           staged.push({
             ref: "custom",
             name: res.name,
-            properties: { type: file.type || "file", size: file.size },
+            display_name: humanType,
+            properties: { type: file.type || "file", size: file.size, typeName: humanType },
             png_path: res.png_path,
             svg_path: null
           });
@@ -1539,12 +2245,26 @@
   });
 
   function attachCurrentSelection() {
+    if (!isCdrAvailable()) {
+      if (virtualShapes && virtualShapes.length > 0) {
+        attachVirtualShape(virtualShapes[virtualShapes.length - 1]);
+        toggleVirtualCanvas(true);
+      } else {
+        triggerCustomFileUpload();
+      }
+      return;
+    }
+
     var sel;
     try {
       sel = cdrApp().ActiveSelectionRange;
     } catch (e) {
-      // If we cannot connect to CorelDRAW, we can also fallback to custom file
-      triggerCustomFileUpload();
+      if (virtualShapes && virtualShapes.length > 0) {
+        attachVirtualShape(virtualShapes[virtualShapes.length - 1]);
+        toggleVirtualCanvas(true);
+      } else {
+        triggerCustomFileUpload();
+      }
       return;
     }
 
@@ -1558,13 +2278,15 @@
       (function (shape) {
         var ref = ensureShapeName(shape);
         var props = readShapeProperties(shape);
+        var humanType = getHumanReadableObjectName({ ref: ref, properties: props });
         getJSON(
           "/export_paths",
           function (paths) {
             exportShapeAssets(shape, paths, function () {
               staged.push({
                 ref: ref,
-                name: shape.Name,
+                name: humanType + " (" + ref + ")",
+                display_name: humanType,
                 properties: props,
                 png_path: paths.png_path,
                 svg_path: paths.svg_path,
@@ -1713,7 +2435,7 @@
   function sendMessage() {
     var input = byId("inputText");
     var text = input.value;
-    if (!text && staged.length === 0) {
+    if ((!text || text.trim() === "") && staged.length === 0) {
       return;
     }
     if (busy) {
@@ -1721,7 +2443,7 @@
     }
 
     var userBubble = null;
-    if (text) {
+    if (text && text.trim() !== "") {
       userBubble = addMessage("user", text);
     }
     var i;
@@ -1871,6 +2593,48 @@
   // ---------------------------------------------------------------
 
   function init() {
+    updateConnectionStatus();
+
+    var toggleCanvasBtn = byId("toggleCanvasBtn");
+    if (toggleCanvasBtn) {
+      toggleCanvasBtn.onclick = function () {
+        toggleVirtualCanvas();
+      };
+    }
+
+    var closeCanvasBtn = byId("closeVirtualCanvasBtn");
+    if (closeCanvasBtn) {
+      closeCanvasBtn.onclick = function () {
+        toggleVirtualCanvas(false);
+      };
+    }
+
+    var clearCanvasBtn = byId("clearVirtualCanvasBtn");
+    if (clearCanvasBtn) {
+      clearCanvasBtn.onclick = function () {
+        virtualShapes = [];
+        renderVirtualCanvas();
+      };
+    }
+
+    // Prompt chips handler
+    var chips = document.querySelectorAll(".prompt-chip");
+    if (chips) {
+      var i;
+      for (i = 0; i < chips.length; i += 1) {
+        (function (chip) {
+          chip.onclick = function () {
+            var promptText = chip.getAttribute("data-prompt");
+            if (promptText) {
+              byId("inputText").value = promptText;
+              autoExpand();
+              sendMessage();
+            }
+          };
+        })(chips[i]);
+      }
+    }
+
     byId("attachBtn").onclick = attachCurrentSelection;
     byId("sendBtn").onclick = sendMessage;
     byId("stopBtn").onclick = function () {
@@ -2220,7 +2984,7 @@
       if (res.messages && res.messages.length > 0) {
         res.messages.forEach(function (m) {
           if (m.role === "user") {
-            if (m.content) {
+            if (m.content && typeof m.content === "string" && m.content.trim() !== "") {
               addMessage("user", m.content);
             }
             if (m.attachments && m.attachments.length > 0) {
@@ -2229,7 +2993,7 @@
               });
             }
           } else if (m.role === "assistant") {
-            if (m.content) {
+            if (m.content && typeof m.content === "string" && m.content.trim() !== "") {
               addMessage("agent", m.content);
             }
             if (m.tool_calls) {
@@ -2256,14 +3020,39 @@
         // Render splash
         byId("messagesInner").innerHTML =
           '<div id="splashScreen">' +
-          '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+          '<div class="splash-icon">' +
+          '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4da6ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
           '<circle cx="12" cy="12" r="10"></circle>' +
           '<path d="M12 16v-4"></path>' +
           '<path d="M12 8h.01"></path>' +
-          "</svg>" +
-          '<div class="splash-title">AI Assistant</div>' +
-          '<div class="splash-desc">Чем я могу помочь вам сегодня?</div>' +
-          "</div>";
+          '</svg>' +
+          '</div>' +
+          '<div class="splash-title">AI Assistant for CorelDRAW</div>' +
+          '<div class="splash-subtitle">Выберите объект в документе или попросите сгенерировать дизайн</div>' +
+          '<div class="prompt-suggestions">' +
+          '<button class="prompt-chip" data-prompt="Создай красный круг размером 50х50 мм по центру">Красный круг 50x50 мм</button>' +
+          '<button class="prompt-chip" data-prompt="Нарисуй синий прямоугольник 100х60 мм">Синий прямоугольник</button>' +
+          '<button class="prompt-chip" data-prompt="Создай золотую пятиконечную звезду">Золотая звезда</button>' +
+          '</div>' +
+          '</div>';
+
+        // Bind prompt chips
+        var chips = document.querySelectorAll(".prompt-chip");
+        if (chips) {
+          var cIdx;
+          for (cIdx = 0; cIdx < chips.length; cIdx += 1) {
+            (function (chip) {
+              chip.onclick = function () {
+                var promptText = chip.getAttribute("data-prompt");
+                if (promptText) {
+                  byId("inputText").value = promptText;
+                  autoExpand();
+                  sendMessage();
+                }
+              };
+            })(chips[cIdx]);
+          }
+        }
       }
     });
   }
