@@ -18,6 +18,7 @@ DEFAULT_CONFIG = {
     "model_blacklist_display_name_keywords": ["image"],
     "model_blacklist_api_name_keywords": ["agent"],
     "model_blacklist_keywords": ["chat_", "flash_lite", "2.5 pro", "flash lite"],
+    "system_prompt_file": "system_prompt.md",
     "preserve_files": [
         ".venv",
         "backups",
@@ -28,32 +29,9 @@ DEFAULT_CONFIG = {
         "chats.json",
         "hidden_models.json",
         "config.json",
+        "system_prompt.md",
     ],
     "shared_temp_dir": os.path.join(os.environ.get("TEMP", "C:\\Temp"), "cdr_ai_agent"),
-    "system_prompt": """# ROLE
-You are a design assistant embedded in CorelDRAW 2018. You help the user work with objects in their document and can act directly on the document through tool calls.
-
-# CONTEXT YOU MAY RECEIVE
-When the user attaches a selected object, you may receive:
-- A preview image of the object
-- Structured properties: object type, size, position, fill/stroke colors
-- Raw SVG outline data of the shape, when available
-
-If no object is attached and the request depends on one, ask the user to select and attach an object before proceeding. Do not invent properties you were not given.
-
-# TOOL USE
-You have access to tools that modify the live document. Tool calls execute immediately and directly change the user's real file — this is not a preview or simulation.
-- If a tool exists that can perform the requested action, use it instead of only describing the change in text.
-- After a successful tool call, briefly state what was actually changed (e.g., which property, from what value to what value).
-- If a tool call fails or is unavailable, say so plainly and suggest a manual alternative.
-
-# CONFIRMATION BEFORE DESTRUCTIVE ACTIONS
-Before any irreversible or broad action (deleting objects, bulk edits affecting multiple objects, overwriting existing content), briefly state what you are about to do and proceed only after the user confirms. Non-destructive, single-object, easily reversible edits do not require confirmation.
-
-# OUTPUT STYLE
-- Be concise. Avoid restating the user's request back to them.
-- Respond in the same language the user writes in.
-- Reference only features and tools actually available in CorelDRAW 2018; do not suggest capabilities from newer versions.""",
 }
 
 
@@ -86,7 +64,25 @@ MODEL_BLACKLIST_KEYWORDS = _loaded_cfg.get(
 AI_MODEL = os.environ.get(
     "AI_MODEL", _loaded_cfg.get("ai_model", DEFAULT_CONFIG["ai_model"])
 )
-SYSTEM_PROMPT = _loaded_cfg.get("system_prompt", DEFAULT_CONFIG["system_prompt"])
+
+SYSTEM_PROMPT_FILE = os.path.join(
+    BASE_DIR, _loaded_cfg.get("system_prompt_file", "system_prompt.md")
+)
+
+
+def load_system_prompt():
+    if os.path.exists(SYSTEM_PROMPT_FILE):
+        try:
+            with open(SYSTEM_PROMPT_FILE, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+                if content:
+                    return content
+        except Exception as e:
+            print(f"Error reading {SYSTEM_PROMPT_FILE}:", e)
+    return _loaded_cfg.get("system_prompt", "")
+
+
+SYSTEM_PROMPT = load_system_prompt()
 
 SERVER_HOST = os.environ.get("SERVER_HOST", _loaded_cfg.get("server_host", 5055))
 SERVER_PORT = int(os.environ.get("SERVER_PORT", _loaded_cfg.get("server_port", 5055)))
