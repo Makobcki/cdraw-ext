@@ -311,9 +311,23 @@
 
   var isCommandGroupOpen = false;
 
+  function cdrApp() {
+    if (window.external && window.external.Application) {
+      return window.external.Application;
+    }
+    if (window.CorelDRAW && window.CorelDRAW.Application) {
+      return window.CorelDRAW.Application;
+    }
+    if (typeof CorelDRAW !== "undefined" && CorelDRAW.Application) {
+      return CorelDRAW.Application;
+    }
+    throw new Error("CorelDRAW Application API (window.external.Application) недоступен.");
+  }
+
   function activeDoc() {
     try {
-      return cdrApp().ActiveDocument;
+      var app = cdrApp();
+      return app ? app.ActiveDocument : null;
     } catch (e) {
       return null;
     }
