@@ -408,6 +408,46 @@
     return null;
   }
 
+  function toMillimeters(val, unitCode) {
+    if (typeof val !== "number" || isNaN(val)) return 0;
+    var factors = {
+      1: 25.4,      // inches
+      2: 304.8,     // feet
+      3: 914.4,     // yards
+      4: 1609344,   // miles
+      5: 1.0,       // mm
+      6: 10.0,      // cm
+      7: 1000.0,    // m
+      8: 1000000.0, // km
+      9: 0.3759,    // didots
+      10: 1.814,    // agates
+      11: 4.2333,   // picas
+      12: 0.352778, // pt
+      13: 0.264583, // px
+      14: 4.512     // ciceros
+    };
+    var factor = factors[unitCode] || 1.0;
+    return Math.round(val * factor * 100) / 100;
+  }
+
+  function getShapeTypeName(typeCode) {
+    var types = {
+      0: "NoShape",
+      1: "Rectangle",
+      2: "Ellipse",
+      3: "Curve",
+      4: "Bitmap",
+      5: "Text",
+      6: "Text",
+      7: "Group",
+      8: "Selection",
+      9: "Guideline",
+      11: "Custom",
+      12: "PerfectShape"
+    };
+    return types[typeCode] || ("Type_" + typeCode);
+  }
+
   function getUnitName(unitCode) {
     var units = {
       1: "inches", 2: "feet", 3: "yards", 4: "miles",
@@ -418,40 +458,61 @@
   }
 
   function readShapeProperties(shape) {
-    var props = { name: shape.Name, typeCode: shape.Type };
+    if (!shape) return {};
+    var typeCode = shape.Type;
+    var typeName = getShapeTypeName(typeCode);
+    var props = { ref: shape.Name, name: shape.Name, typeCode: typeCode, typeName: typeName };
+    var unitCode = 5;
     try {
-      var u = activeDoc().Unit;
-      props.docUnit = String(u);
-      props.docUnitName = getUnitName(u);
-    } catch (e) {
-      /* ignore */
-    }
+      var doc = activeDoc();
+      if (doc) {
+        unitCode = doc.Unit;
+        props.docUnit = String(unitCode);
+        props.docUnitName = getUnitName(unitCode);
+      }
+    } catch (e) {}
+
     try {
-      props.width = shape.SizeWidth;
-    } catch (e) {
-      /* ignore */
-    }
+      var w = shape.SizeWidth;
+      props.width = Math.round(w * 100) / 100;
+      props.width_mm = toMillimeters(w, unitCode);
+    } catch (e) {}
+
     try {
-      props.height = shape.SizeHeight;
-    } catch (e) {
-      /* ignore */
-    }
+      var h = shape.SizeHeight;
+      props.height = Math.round(h * 100) / 100;
+      props.height_mm = toMillimeters(h, unitCode);
+    } catch (e) {}
+
     try {
-      props.x = shape.PositionX; // Confirmed CorelDRAW Shape.PositionX property
-    } catch (e) {
-      /* ignore */
-    }
+      var x = shape.PositionX;
+      props.x = Math.round(x * 100) / 100;
+      props.x_mm = toMillimeters(x, unitCode);
+    } catch (e) {}
+
     try {
-      props.y = shape.PositionY; // Confirmed CorelDRAW Shape.PositionY property
-    } catch (e) {
-      /* ignore */
-    }
+      var y = shape.PositionY;
+      props.y = Math.round(y * 100) / 100;
+      props.y_mm = toMillimeters(y, unitCode);
+    } catch (e) {}
+
     try {
-      var colors = shape.GetColors(); // Confirmed CorelDRAW Shape.GetColors() method
+      if (shape.Text && shape.Text.Story) {
+        props.typeName = "Text";
+        props.text = shape.Text.Story.Text;
+        try { props.font = shape.Text.Story.Font; } catch (eF) {}
+        try { props.fontSize = shape.Text.Story.Size; } catch (eS) {}
+      }
+    } catch (e) {}
+
+    try {
+      var colors = shape.GetColors();
       props.colors = colorsToArray(colors);
-    } catch (e) {
-      /* ignore */
-    }
+    } catch (e) {}
+
+    props.size_formatted = (props.width_mm || 0) + " x " + (props.height_mm || 0) + " мм (" + props.width + " x " + props.height + " " + (props.docUnitName || "units") + ")";
+    props.position_formatted = "X: " + (props.x_mm || 0) + " мм, Y: " + (props.y_mm || 0) + " мм (" + props.x + ", " + props.y + " " + (props.docUnitName || "units") + ")";
+
     return props;
   }
 
@@ -766,7 +827,12 @@
       try {
         var shape = requireShape(args.ref);
         exportShapeAssets(shape, backendPaths, function () {
-          cb({ ok: true, svg_path: backendPaths.svg_path });
+          cb({
+            ok: true,
+            ref: args.ref,
+            svg_path: backendPaths.svg_path,
+            png_path: backendPaths.png_path
+          });
         });
       } catch (e) {
         cb({ error: "Ошибка экспорта SVG: " + e.message });
@@ -921,7 +987,37 @@
         }
         var unitCode = doc.Unit;
         var unitName = getUnitName(unitCode);
-        var info = { width: page.SizeWidth, height: page.SizeHeight, unit: unitName, unit_code: unitCode };
+        var widthDoc = Math.round(page.SizeWidth * 100) / 100;
+        var heightDoc = Math.round(page.SizeHeight * 100) / 100;
+        var widthMm = toMillimeters(page.SizeWidth, unitCode);
+        var heightMm = toMillimeters(page.SizeHeight, unitCode);
+
+        var shapeList = [];
+        try {
+          var shapes = page.Shapes;
+          if (shapes) {
+            var count = shapes.Count;
+            var i;
+            for (i = 1; i <= count; i += 1) {
+              var s = shapes.Item(i);
+              shapeList.push(readShapeProperties(s));
+            }
+          }
+        } catch (eShapes) {
+          /* best effort */
+        }
+
+        var info = {
+          width: widthDoc,
+          height: heightDoc,
+          width_mm: widthMm,
+          height_mm: heightMm,
+          size_formatted: widthMm + " x " + heightMm + " мм (" + widthDoc + " x " + heightDoc + " " + unitName + ")",
+          unit: unitName,
+          unit_code: unitCode,
+          shapes_count: shapeList.length,
+          shapes: shapeList
+        };
         cb(info);
       } catch (e) {
         cb({ error: "Ошибка при получении информации о странице: " + e.message });
