@@ -1769,3 +1769,33 @@ dialog#updaterModal::backdrop {
 .splash-icon {
   margin-bottom: 8px;
 }
+
+/* Model reasoning stream */
+.msg-reasoning {
+  padding: 2px 0 6px 0;
+}
+.reasoning-box {
+  border-left: 2px solid #3a3a3a;
+  color: #a8a8a8;
+  margin: 2px 0 6px 0;
+  padding: 0 0 0 10px;
+}
+.reasoning-title {
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #8f8f8f;
+  user-select: none;
+}
+.reasoning-body {
+  font-size: 12px;
+  line-height: 1.55;
+  padding: 6px 0 2px 0;
+  white-space: normal;
+}
+.reasoning-body code {
+  font-family: Consolas, Monaco, 'Andale Mono', monospace;
+  background: #252525;
+  border-radius: 3px;
+  padding: 1px 4px;
+}
