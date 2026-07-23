@@ -378,6 +378,9 @@
     // Fallback: linear search over the document if the docker was reloaded
     // and the in-memory registry was lost.
     var doc = activeDoc();
+    if (!doc) {
+      return null;
+    }
     var shapes = doc.Shapes;
     var count = shapes.Count;
     var i;
@@ -534,84 +537,133 @@
 
   var TOOL_HANDLERS = {
     set_fill_color: function (args, cb) {
-      var shape = requireShape(args.ref);
-      var fill = shape.Fill;
-      var rgb = hexToRgb(args.hex_color);
       try {
+        var shape = requireShape(args.ref);
+        if (!shape || !shape.Fill) {
+          cb({ error: "Объект не поддерживает заливку (shape.Fill недоступен)." });
+          return;
+        }
+        var fill = shape.Fill;
+        var rgb = hexToRgb(args.hex_color);
         var c = cdrApp().CreateColorEx(1 /* cdrColorRGB */, rgb.r, rgb.g, rgb.b, 0);
         fill.ApplyUniformFill(c);
+        cb({ ok: true });
       } catch (e) {
-        cb({ error: "ApplyUniformFill failed: " + e.message });
-        return;
+        cb({ error: "Ошибка применения заливки: " + e.message });
       }
-      cb({ ok: true });
     },
 
     set_position: function (args, cb) {
-      var shape = requireShape(args.ref);
-      shape.SetPosition(args.x, args.y); // confirmed method
-      var unitName = "";
-      try { unitName = getUnitName(activeDoc().Unit); } catch (e) {}
-      cb({ ok: true, x: args.x, y: args.y, unit: unitName });
+      try {
+        var shape = requireShape(args.ref);
+        shape.SetPosition(args.x, args.y); // confirmed method
+        var unitName = "";
+        try {
+          var doc = activeDoc();
+          if (doc) {
+            unitName = getUnitName(doc.Unit);
+          }
+        } catch (e) {}
+        cb({ ok: true, x: args.x, y: args.y, unit: unitName });
+      } catch (e) {
+        cb({ error: "Ошибка установки позиции: " + e.message });
+      }
     },
 
     set_size: function (args, cb) {
-      var shape = requireShape(args.ref);
-      shape.SetSize(args.width, args.height); // confirmed method
-      var unitName = "";
-      try { unitName = getUnitName(activeDoc().Unit); } catch (e) {}
-      cb({ ok: true, width: args.width, height: args.height, unit: unitName });
+      try {
+        var shape = requireShape(args.ref);
+        shape.SetSize(args.width, args.height); // confirmed method
+        var unitName = "";
+        try {
+          var doc = activeDoc();
+          if (doc) {
+            unitName = getUnitName(doc.Unit);
+          }
+        } catch (e) {}
+        cb({ ok: true, width: args.width, height: args.height, unit: unitName });
+      } catch (e) {
+        cb({ error: "Ошибка установки размера: " + e.message });
+      }
     },
 
     rotate: function (args, cb) {
-      var shape = requireShape(args.ref);
-      shape.Rotate(args.angle); // confirmed method
-      cb({ ok: true, angle: args.angle });
+      try {
+        var shape = requireShape(args.ref);
+        shape.Rotate(args.angle); // confirmed method
+        cb({ ok: true, angle: args.angle });
+      } catch (e) {
+        cb({ error: "Ошибка поворота объекта: " + e.message });
+      }
     },
 
     duplicate: function (args, cb) {
-      var shape = requireShape(args.ref);
-      var copy = shape.Duplicate(); // confirmed method
-      var newRef = ensureShapeName(copy);
-      cb({ ok: true, new_ref: newRef });
+      try {
+        var shape = requireShape(args.ref);
+        var copy = shape.Duplicate(); // confirmed method
+        if (!copy) {
+          cb({ error: "Не удалось дублировать объект." });
+          return;
+        }
+        var newRef = ensureShapeName(copy);
+        cb({ ok: true, new_ref: newRef });
+      } catch (e) {
+        cb({ error: "Ошибка дублирования объекта: " + e.message });
+      }
     },
 
     delete_shape: function (args, cb) {
-      var shape = requireShape(args.ref);
-      shape.Delete(); // confirmed method
-      delete shapeRegistry[args.ref];
-      cb({ ok: true });
+      try {
+        var shape = requireShape(args.ref);
+        shape.Delete(); // confirmed method
+        delete shapeRegistry[args.ref];
+        cb({ ok: true });
+      } catch (e) {
+        cb({ error: "Ошибка удаления объекта: " + e.message });
+      }
     },
 
     convert_to_curves: function (args, cb) {
-      var shape = requireShape(args.ref);
-      shape.ConvertToCurves(); // confirmed method
-      cb({ ok: true });
+      try {
+        var shape = requireShape(args.ref);
+        shape.ConvertToCurves(); // confirmed method
+        cb({ ok: true });
+      } catch (e) {
+        cb({ error: "Ошибка преобразования в кривые: " + e.message });
+      }
     },
 
     order: function (args, cb) {
-      var shape = requireShape(args.ref);
-      var mode = args.mode; // "front" | "back" | "forward" | "backward"
-      if (mode === "front") {
-        shape.OrderToFront();
-      } else if (mode === "back") {
-        shape.OrderToBack();
-      } else if (mode === "forward") {
-        shape.OrderForwardOne();
-      } else if (mode === "backward") {
-        shape.OrderBackOne();
-      } else {
-        cb({ error: "unknown order mode: " + mode });
-        return;
+      try {
+        var shape = requireShape(args.ref);
+        var mode = args.mode; // "front" | "back" | "forward" | "backward"
+        if (mode === "front") {
+          shape.OrderToFront();
+        } else if (mode === "back") {
+          shape.OrderToBack();
+        } else if (mode === "forward") {
+          shape.OrderForwardOne();
+        } else if (mode === "backward") {
+          shape.OrderBackOne();
+        } else {
+          cb({ error: "Неизвестный режим порядка: " + mode });
+          return;
+        }
+        cb({ ok: true });
+      } catch (e) {
+        cb({ error: "Ошибка изменения порядка элементов: " + e.message });
       }
-      cb({ ok: true });
     },
 
     export_svg: function (args, cb, backendPaths) {
-      var shape = requireShape(args.ref);
-      exportShapeAssets(shape, backendPaths, function () {
-        cb({ ok: true, svg_path: backendPaths.svg_path });
-      });
+      try {
+        var shape = requireShape(args.ref);
+        exportShapeAssets(shape, backendPaths, function () {
+          cb({ ok: true, svg_path: backendPaths.svg_path });
+        });
+      } catch (e) {
+        cb({ error: "Ошибка экспорта SVG: " + e.message });
+      }
     },
 
     import_svg: function (args, cb) {
@@ -623,82 +675,113 @@
         cb({ error: "Нет открытого документа в CorelDRAW." });
         return;
       }
-      var layer = doc.ActiveLayer;
-      var imported = layer.ImportEx(args.svg_path); // Confirmed CorelDRAW Layer.ImportEx(FileName) method
-      var newRef = null;
       try {
-        newRef = ensureShapeName(imported.Shapes.Item(1));
-      } catch (e) {
-        /* ignore */
-      }
-      if (newRef && typeof args.x === "number" && typeof args.y === "number") {
-        try {
-          findShapeByRef(newRef).SetPosition(args.x, args.y);
-        } catch (e) {
-          /* best effort */
+        var layer = doc.ActiveLayer;
+        if (!layer) {
+          cb({ error: "Не удалось получить активный слой документа." });
+          return;
         }
+        var imported = layer.ImportEx(args.svg_path); // Confirmed CorelDRAW Layer.ImportEx(FileName) method
+        var newRef = null;
+        try {
+          if (imported && imported.Shapes && imported.Shapes.Count > 0) {
+            newRef = ensureShapeName(imported.Shapes.Item(1));
+          }
+        } catch (e) {
+          /* ignore */
+        }
+        if (newRef && typeof args.x === "number" && typeof args.y === "number") {
+          try {
+            var target = findShapeByRef(newRef);
+            if (target) {
+              target.SetPosition(args.x, args.y);
+            }
+          } catch (e) {
+            /* best effort */
+          }
+        }
+        cb({ ok: true, new_ref: newRef });
+      } catch (e) {
+        cb({ error: "Ошибка импорта SVG: " + e.message });
       }
-      cb({ ok: true, new_ref: newRef });
     },
 
     // Bitmap.Trace signature and cdrTraceType values confirmed against
     // community.coreldraw.com/sdk/api/draw/20/m/bitmap.trace and .../e/cdrTraceType.
     trace_bitmap: function (args, cb) {
-      var shape = requireShape(args.ref);
-      if (shape.Type !== 4 /* cdrBitmapShape */) {
-        cb({
-          error: "Выбранный объект не является растровым изображением (битмапом). Код типа объекта: " + shape.Type + " (требуется cdrBitmapShape = 4). Пожалуйста, выберите растр для трассировки."
-        });
-        return;
-      }
-      var styleMap = {
-        line_art: 1,
-        logo: 2,
-        detailed_logo: 3,
-        clipart: 4,
-        low_quality_image: 5,
-        high_quality_image: 6,
-        technical: 7,
-        line_drawing: 8,
-      };
-      var traceType = styleMap[args.style] || 6; // default: high_quality_image
       try {
+        var shape = requireShape(args.ref);
+        if (!shape || shape.Type !== 4 /* cdrBitmapShape */) {
+          cb({
+            error: "Выбранный объект не является растровым изображением (битмапом). Код типа объекта: " + (shape ? shape.Type : "undefined") + " (требуется cdrBitmapShape = 4). Пожалуйста, выберите растр для трассировки."
+          });
+          return;
+        }
+        var styleMap = {
+          line_art: 1,
+          logo: 2,
+          detailed_logo: 3,
+          clipart: 4,
+          low_quality_image: 5,
+          high_quality_image: 6,
+          technical: 7,
+          line_drawing: 8,
+        };
+        var traceType = styleMap[args.style] || 6; // default: high_quality_image
         var bitmap = shape.Bitmap;
+        if (!bitmap) {
+          cb({ error: "Объект не содержит растровых данных (shape.Bitmap недоступен)." });
+          return;
+        }
         bitmap.Trace(traceType);
+        var newRefs = [];
+        try {
+          var sel = cdrApp().ActiveSelection;
+          if (sel && sel.Shapes) {
+            var i;
+            for (i = 1; i <= sel.Shapes.Count; i += 1) {
+              newRefs.push(ensureShapeName(sel.Shapes.Item(i)));
+            }
+          }
+        } catch (e) {
+          /* best effort */
+        }
+        cb({ ok: true, new_refs: newRefs });
       } catch (e) {
         cb({ error: "Ошибка при трассировке изображения: " + e.message });
-        return;
       }
-      var newRefs = [];
-      try {
-        var sel = cdrApp().ActiveSelection;
-        var i;
-        for (i = 1; i <= sel.Shapes.Count; i += 1) {
-          newRefs.push(ensureShapeName(sel.Shapes.Item(i)));
-        }
-      } catch (e) {
-        /* best effort */
-      }
-      cb({ ok: true, new_refs: newRefs });
     },
 
     get_page_info: function (args, cb) {
-      var page = activeDoc().ActivePage;
-      var unitCode = activeDoc().Unit;
-      var unitName = getUnitName(unitCode);
-      var info = { width: page.SizeWidth, height: page.SizeHeight, unit: unitName, unit_code: unitCode };
-      cb(info);
+      try {
+        var doc = activeDoc();
+        if (!doc) {
+          cb({ error: "Нет открытого документа в CorelDRAW." });
+          return;
+        }
+        var page = doc.ActivePage;
+        if (!page) {
+          cb({ error: "Не удалось получить активную страницу документа." });
+          return;
+        }
+        var unitCode = doc.Unit;
+        var unitName = getUnitName(unitCode);
+        var info = { width: page.SizeWidth, height: page.SizeHeight, unit: unitName, unit_code: unitCode };
+        cb(info);
+      } catch (e) {
+        cb({ error: "Ошибка при получении информации о странице: " + e.message });
+      }
     },
 
     set_text: function (args, cb) {
-      var shape = requireShape(args.ref);
       try {
-        if (!shape.Text) {
-          cb({ error: "Объект не содержит текстовых данных (shape.Text недоступен)." });
+        var shape = requireShape(args.ref);
+        if (!shape || !shape.Text || !shape.Text.Story) {
+          cb({ error: "Объект не содержит текстовых данных (shape.Text.Story недоступен)." });
           return;
         }
-        shape.Text.Story.Text = args.text;
-        cb({ ok: true, text: args.text });
+        shape.Text.Story.Text = args.text || "";
+        cb({ ok: true, text: args.text || "" });
       } catch (e) {
         cb({ error: "Не удалось изменить текст: " + e.message });
       }
@@ -706,6 +789,10 @@
 
     group_shapes: function (args, cb) {
       try {
+        if (!args || !args.refs || !args.refs.length) {
+          cb({ error: "Не переданы объекты для группировки." });
+          return;
+        }
         var sr = cdrApp().CreateShapeRange();
         var i, s;
         for (i = 0; i < args.refs.length; i += 1) {
@@ -727,14 +814,18 @@
     },
 
     ungroup_shapes: function (args, cb) {
-      var shape = requireShape(args.ref);
       try {
+        var shape = requireShape(args.ref);
         var newRefs = [];
         var unGrouped = null;
         try {
           unGrouped = shape.UngroupEx();
         } catch (e1) {
-          shape.Ungroup();
+          try {
+            unGrouped = shape.Ungroup();
+          } catch (e2) {
+            /* ignore */
+          }
         }
         if (unGrouped && unGrouped.Count) {
           var i;
@@ -750,6 +841,10 @@
 
     align_objects: function (args, cb) {
       try {
+        if (!args || !args.refs || !args.refs.length) {
+          cb({ error: "Не переданы объекты для выравнивания." });
+          return;
+        }
         var sr = cdrApp().CreateShapeRange();
         var i, s;
         for (i = 0; i < args.refs.length; i += 1) {
@@ -788,11 +883,17 @@
   }
 
   function hexToRgb(hex) {
-    var clean = hex.replace("#", "");
+    if (!hex || typeof hex !== "string") {
+      return { r: 0, g: 0, b: 0 };
+    }
+    var clean = hex.replace("#", "").trim();
+    if (clean.length === 3) {
+      clean = clean[0] + clean[0] + clean[1] + clean[1] + clean[2] + clean[2];
+    }
     return {
-      r: parseInt(clean.substring(0, 2), 16),
-      g: parseInt(clean.substring(2, 4), 16),
-      b: parseInt(clean.substring(4, 6), 16),
+      r: parseInt(clean.substring(0, 2), 16) || 0,
+      g: parseInt(clean.substring(2, 4), 16) || 0,
+      b: parseInt(clean.substring(4, 6), 16) || 0,
     };
   }
 
