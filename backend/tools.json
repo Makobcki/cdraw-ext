@@ -1,7 +1,7 @@
 [
   {
     "name": "set_fill_color",
-    "description": "Задать сплошную заливку объекта. Если документ находится в CMYK-режиме, RGB-цвет автоматически конвертируется в соответствующий эквивалент CMYK.",
+    "description": "Задать сплошную заливку объекта. Требуется передать hex_color или cmyk_color. Если указаны оба цвета, приоритет отдается cmyk_color. Если документ в CMYK-режиме, RGB-цвет автоматически конвертируется в эквивалент CMYK.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -26,12 +26,16 @@
           "required": ["c", "m", "y", "k"]
         }
       },
-      "required": ["ref"]
+      "required": ["ref"],
+      "anyOf": [
+        { "required": ["hex_color"] },
+        { "required": ["cmyk_color"] }
+      ]
     }
   },
   {
     "name": "set_outline",
-    "description": "Задать параметры обводки (абриса) объекта: цвет, толщину и стиль линии.",
+    "description": "Задать параметры обводки (абриса) объекта: цвет, толщину и стиль линии. Для убирания обводки передайте style='none'.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -62,8 +66,8 @@
         },
         "style": {
           "type": "string",
-          "enum": ["solid", "dash", "dot", "dash_dot"],
-          "description": "Стиль линии: сплошная (solid), пунктир (dash), точки (dot) или штрихпунктир (dash_dot)"
+          "enum": ["none", "solid", "dash", "dot", "dash_dot"],
+          "description": "Стиль линии: без обводки (none), сплошная (solid), пунктир (dash), точки (dot) или штрихпунктир (dash_dot)"
         }
       },
       "required": ["ref"]
@@ -266,7 +270,19 @@
           "description": "Идентификатор целевого объекта (обязателен при режиме in_front_of или behind)"
         }
       },
-      "required": ["ref", "mode"]
+      "required": ["ref", "mode"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": { "enum": ["in_front_of", "behind"] }
+            }
+          },
+          "then": {
+            "required": ["target_ref"]
+          }
+        }
+      ]
     }
   },
   {
