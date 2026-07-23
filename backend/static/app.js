@@ -1572,6 +1572,24 @@
     }
   }
 
+  function addReasoning(text) {
+    if (!text || (typeof text === "string" && text.trim() === "")) {
+      return null;
+    }
+    removeSplash();
+    var row = el("div", "msg-row msg-reasoning");
+    var box = el("div", "reasoning-box");
+    var title = el("div", "reasoning-title", "Рассуждения модели");
+    var body = el("div", "reasoning-body");
+    body.innerHTML = renderMarkdown(text);
+    box.appendChild(title);
+    box.appendChild(body);
+    row.appendChild(box);
+    byId("messagesInner").appendChild(row);
+    scrollToBottom();
+    return body;
+  }
+
   function addMessage(role, text) {
     if (!text || (typeof text === "string" && text.trim() === "")) {
       return null;
@@ -2354,6 +2372,8 @@
     setBusy(true);
     var currentBubble = null;
     var currentText = "";
+    var reasoningBody = null;
+    var reasoningText = "";
 
     postJSONStream(
       url,
@@ -2361,7 +2381,15 @@
       function (chunk) {
         setBusy(false);
 
-        if (chunk.type === "chunk") {
+        if (chunk.type === "thought") {
+          reasoningText += chunk.text;
+          if (!reasoningBody) {
+            reasoningBody = addReasoning(reasoningText);
+          } else {
+            reasoningBody.innerHTML = renderMarkdown(reasoningText);
+            scrollToBottom(true);
+          }
+        } else if (chunk.type === "chunk") {
           currentText += chunk.text;
           if (!currentBubble) {
             currentBubble = addMessage("agent", currentText);
@@ -2993,6 +3021,9 @@
               });
             }
           } else if (m.role === "assistant") {
+            if (m.thought && typeof m.thought === "string" && m.thought.trim() !== "") {
+              addReasoning(m.thought);
+            }
             if (m.content && typeof m.content === "string" && m.content.trim() !== "") {
               addMessage("agent", m.content);
             }
