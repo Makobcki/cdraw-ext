@@ -30,7 +30,8 @@
     "chats.json",
     "hidden_models.json",
     "config.json",
-    "system_prompt.md"
+    "system_prompt.md",
+    "tools.json"
   ],
   "shared_temp_dir": "C:\\Temp\\cdr_ai_agent"
 }
