@@ -13,7 +13,7 @@
   --color-accent-hover: #3a85db;
   --color-danger: #ff5252;
   --color-danger-hover: #ef4444;
-  --font-base: 'Inter', "Segoe UI", Tahoma, Arial, sans-serif;
+  --font-base: "Inter", "Segoe UI", Tahoma, Arial, sans-serif;
   --edge-padding: 12px;
   color-scheme: dark;
 }
@@ -43,7 +43,8 @@ dialog#updaterModal,
   transform: translateZ(0);
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   height: 100%;
@@ -65,7 +66,8 @@ html, body {
 
 /* topControls is defined further in the file */
 
-#toggleSidebarBtn, #newChatBtn {
+#toggleSidebarBtn,
+#newChatBtn {
   background: transparent;
   border: none;
   color: #aaa;
@@ -77,22 +79,25 @@ html, body {
   padding: 3px;
   transition: color 0.2s ease;
 }
-#toggleSidebarBtn svg, #newChatBtn svg {
+#toggleSidebarBtn svg,
+#newChatBtn svg {
   width: 18px;
   height: 18px;
 }
 
-#toggleSidebarBtn:hover, #newChatBtn:hover {
+#toggleSidebarBtn:hover,
+#newChatBtn:hover {
   color: #fff;
 }
-
-
 
 /* Sidebar Overlay */
 #sidebarOverlay {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
   z-index: 1999;
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -100,13 +105,15 @@ html, body {
 
 .overlay-sidebar {
   position: fixed;
-  top: 0; bottom: 0; left: 0;
+  top: 0;
+  bottom: 0;
+  left: 0;
   width: 280px;
   max-width: 80%;
   background: rgba(26, 26, 26, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  box-shadow: 4px 0 24px rgba(0,0,0,0.8);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.8);
   display: flex;
   flex-direction: column;
   z-index: 2000;
@@ -135,7 +142,8 @@ html, body {
 .sidebar-header-actions > * + * {
   margin-left: 8px;
 }
-#sidebarNewChatBtn, #closeSidebarBtn {
+#sidebarNewChatBtn,
+#closeSidebarBtn {
   background: transparent;
   border: none;
   color: #888;
@@ -146,7 +154,10 @@ html, body {
   align-items: center;
   justify-content: center;
 }
-#sidebarNewChatBtn:hover, #closeSidebarBtn:hover { color: #fff; }
+#sidebarNewChatBtn:hover,
+#closeSidebarBtn:hover {
+  color: #fff;
+}
 
 .sidebar-divider {
   height: 1px;
@@ -216,15 +227,20 @@ html, body {
   opacity: 1;
 }
 
-.chat-item-edit, .chat-item-delete {
+.chat-item-edit,
+.chat-item-delete {
   color: #666;
   cursor: pointer;
   font-size: 14px;
   transition: color 0.2s;
 }
 
-.chat-item-edit:hover { color: #4da6ff; }
-.chat-item-delete:hover { color: #ff5252; }
+.chat-item-edit:hover {
+  color: #4da6ff;
+}
+.chat-item-delete:hover {
+  color: #ff5252;
+}
 
 #app {
   flex: 1;
@@ -242,11 +258,15 @@ html, body {
   left: 0;
   right: 0;
   height: 46px;
-  background: linear-gradient(to bottom, #111111 0%, #111111 40%, transparent 100%);
-  background: linear-gradient(to bottom, var(--color-bg-base) 0%, var(--color-bg-base) 40%, transparent 100%);
+  background: linear-gradient(
+    to bottom,
+    #111111 0%,
+    #111111 40%,
+    transparent 100%
+  );
   z-index: 10;
   transition: opacity 0.15s ease;
-  pointer-events: none;
+  pointer-events: none !important;
 }
 
 /* Sidebar Footer */
@@ -254,7 +274,6 @@ html, body {
   padding: 16px 20px;
   border-top: 1px solid #2a2a2a;
 }
-
 
 /* Custom Model Dropdown */
 .model-dropdown {
@@ -299,7 +318,7 @@ html, body {
   background: rgba(30, 30, 30, 0.98);
   border: 1px solid #333;
   border-radius: 8px;
-  box-shadow: 0 -4px 12px rgba(0,0,0,0.5);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.5);
   z-index: 1000;
   min-width: min(210px, calc(100vw - 16px));
   max-width: min(280px, calc(100vw - 16px));
@@ -356,7 +375,7 @@ html, body {
   justify-content: center;
 }
 .model-delete-btn:hover {
-  color: #F44336;
+  color: #f44336;
 }
 .model-delete-btn svg {
   width: 14px;
@@ -381,7 +400,9 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s, transform 0.2s;
+  transition:
+    color 0.2s,
+    transform 0.2s;
 }
 .model-reset-btn:hover {
   color: #fff;
@@ -436,7 +457,7 @@ html, body {
   border: 1px solid #333;
   border-radius: 8px;
   z-index: 1000;
-  box-shadow: 0 -8px 24px rgba(0,0,0,0.6);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.6);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -450,7 +471,9 @@ html, body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 .account-item:last-child {
   border-bottom: none;
@@ -481,7 +504,8 @@ html, body {
   align-items: center;
   gap: 8px;
 }
-.account-edit-btn, .account-remove-btn {
+.account-edit-btn,
+.account-remove-btn {
   background: transparent;
   border: none;
   color: #777;
@@ -498,7 +522,8 @@ html, body {
 .account-remove-btn:hover {
   color: #ff5252;
 }
-.account-edit-btn svg, .account-remove-btn svg {
+.account-edit-btn svg,
+.account-remove-btn svg {
   width: 14px;
   height: 14px;
 }
@@ -557,8 +582,14 @@ html, body {
 }
 
 @keyframes slideFadeIn {
-  0% { opacity: 0; transform: translateY(8px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ---------------------------------------------------------------
@@ -617,7 +648,7 @@ html, body {
 
 /* Markdown inside agent messages */
 .msg-agent .bubble code {
-  font-family: Consolas, Monaco, 'Andale Mono', monospace;
+  font-family: Consolas, Monaco, "Andale Mono", monospace;
   background: #252525;
   color: #e5c07b;
   padding: 1px 5px;
@@ -662,10 +693,18 @@ html, body {
   color: #ffffff;
 }
 
-.msg-agent .bubble h1 { font-size: 15px; }
-.msg-agent .bubble h2 { font-size: 14px; }
-.msg-agent .bubble h3 { font-size: 13px; }
-.msg-agent .bubble h4 { font-size: 12.5px; }
+.msg-agent .bubble h1 {
+  font-size: 15px;
+}
+.msg-agent .bubble h2 {
+  font-size: 14px;
+}
+.msg-agent .bubble h3 {
+  font-size: 13px;
+}
+.msg-agent .bubble h4 {
+  font-size: 12.5px;
+}
 
 .msg-agent .bubble p {
   margin: 0 0 8px 0;
@@ -877,7 +916,7 @@ html, body {
   top: 4px;
   right: 4px;
   color: #000000;
-  background: rgba(255,255,255,0.8);
+  background: rgba(255, 255, 255, 0.8);
   border-radius: 50%;
   width: 16px;
   height: 16px;
@@ -885,7 +924,9 @@ html, body {
   text-align: center;
   font-size: 10px;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 .attach-card .remove:hover {
   background: #ef4444;
@@ -900,7 +941,9 @@ html, body {
   background: #111111;
   border-top: 1px solid #222222;
 }
-#attachTray.empty { display: none; }
+#attachTray.empty {
+  display: none;
+}
 
 /* ---------- input bar ---------- */
 
@@ -915,7 +958,7 @@ html, body {
   border: 1px solid #333333; /* IE11 fallback */
   border: 1px solid var(--color-border-input);
   border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   gap: 4px;
   transition: border-color 0.15s ease;
 }
@@ -941,10 +984,16 @@ html, body {
   font-size: 13px;
   line-height: 1.5;
 }
-#inputText::-ms-input-placeholder { color: #666666; color: var(--color-text-muted); }
-#inputText::placeholder { color: #666666; color: var(--color-text-muted); }
-#inputText:focus { 
-  outline: none; 
+#inputText::-ms-input-placeholder {
+  color: #666666;
+  color: var(--color-text-muted);
+}
+#inputText::placeholder {
+  color: #666666;
+  color: var(--color-text-muted);
+}
+#inputText:focus {
+  outline: none;
 }
 
 #inputControls {
@@ -961,7 +1010,7 @@ html, body {
   gap: 6px;
   min-width: 0;
   flex: 1 1 auto;
-  overflow: hidden;
+  overflow: visible;
 }
 .input-controls-left > * + * {
   margin-left: 0;
@@ -998,10 +1047,19 @@ html, body {
   color: #aaa;
   flex-shrink: 0;
 }
-#attachBtn svg { width: 18px; height: 18px; stroke: currentColor; transition: stroke 0.2s; }
-#attachBtn:hover { background: #333; color: #fff; }
+#attachBtn svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  transition: stroke 0.2s;
+}
+#attachBtn:hover {
+  background: #333;
+  color: #fff;
+}
 
-#sendBtn, #stopBtn {
+#sendBtn,
+#stopBtn {
   width: 28px;
   height: 28px;
   padding: 0;
@@ -1046,11 +1104,23 @@ html, body {
   background: #888888;
   animation: pulse 1s infinite ease-in-out both;
 }
-.typing-dot:nth-child(1) { animation-delay: -0.32s; }
-.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+.typing-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+.typing-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
 @keyframes pulse {
-  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-  40% { transform: translateY(-3px); opacity: 1; }
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  40% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
 }
 
 /* Scrollbar styling for IE/Edge */
@@ -1082,13 +1152,13 @@ dialog#customModal {
   padding: 0;
   color: #ededed;
   color: var(--color-text-primary);
-  box-shadow: 0 16px 32px rgba(0,0,0,0.7);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.7);
   overflow: hidden;
   animation: slideUp 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 dialog#customModal::backdrop {
-  background: rgba(0,0,0,0.6);
+  background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(2px);
   animation: fadeIn 0.2s ease;
 }
@@ -1143,7 +1213,8 @@ dialog#customModal::backdrop {
 #customModalFooter form > * + * {
   margin-left: 10px;
 }
-#customModalCancel, #customModalOk {
+#customModalCancel,
+#customModalOk {
   background: #2a2a2a;
   background: var(--color-border);
   border: none;
@@ -1170,12 +1241,22 @@ dialog#customModal::backdrop {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(16px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* ---------------------------------------------------------------
@@ -1218,16 +1299,25 @@ dialog#customModal::backdrop {
 }
 
 @keyframes pulseBadge {
-  0% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.15); opacity: 0.85; }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .update-banner {
   position: absolute;
-  top: 12px;
+  top: 4px;
   left: 88px;
-  right: 16px;
+  right: 110px;
   background: #1e3c72;
   background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
   color: #fff;
@@ -1237,7 +1327,7 @@ dialog#customModal::backdrop {
   justify-content: space-between;
   font-size: 12px;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   z-index: 501;
   animation: fadeIn 0.3s ease;
 }
@@ -1277,7 +1367,7 @@ dialog#customModal::backdrop {
 .update-banner-close {
   background: transparent;
   border: none;
-  color: rgba(255,255,255,0.7);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 14px;
   cursor: pointer;
   padding: 2px 4px;
@@ -1298,13 +1388,13 @@ dialog#updaterModal {
   padding: 0;
   color: #ededed;
   color: var(--color-text-primary);
-  box-shadow: 0 16px 36px rgba(0,0,0,0.75);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75);
   overflow: hidden;
   animation: slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 dialog#updaterModal::backdrop {
-  background: rgba(0,0,0,0.65);
+  background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(3px);
 }
 
@@ -1336,7 +1426,7 @@ dialog#updaterModal::backdrop {
 }
 .close-modal-btn:hover {
   color: #fff;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .updater-modal-body {
@@ -1531,7 +1621,8 @@ dialog#updaterModal::backdrop {
   pointer-events: none;
 }
 
-.top-controls-left, .top-controls-right {
+.top-controls-left,
+.top-controls-right {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1663,7 +1754,9 @@ dialog#updaterModal::backdrop {
   padding: 2px 4px;
 }
 
-.canvas-close-btn:hover { color: #ffffff; }
+.canvas-close-btn:hover {
+  color: #ffffff;
+}
 
 .virtual-canvas-body {
   padding: 8px;
@@ -1794,7 +1887,7 @@ dialog#updaterModal::backdrop {
   white-space: normal;
 }
 .reasoning-body code {
-  font-family: Consolas, Monaco, 'Andale Mono', monospace;
+  font-family: Consolas, Monaco, "Andale Mono", monospace;
   background: #252525;
   border-radius: 3px;
   padding: 1px 4px;

@@ -85,7 +85,6 @@
       var st = m.scrollTop;
       var opacity = Math.max(0, Math.min(1, st / fixedMargin));
       overlay.style.opacity = opacity;
-      overlay.style.pointerEvents = opacity > 0.1 ? "auto" : "none";
     }
   }
 
@@ -183,7 +182,7 @@
       function (match, hashes, content) {
         var level = hashes.length;
         return "<h" + level + ">" + content + "</h" + level + ">";
-      }
+      },
     );
 
     html = html.replace(/^\s*[\-\*]\s+(.+)$/gm, "<li>$1</li>");
@@ -248,7 +247,7 @@
             buffer = parts.pop();
             var unparsed = "";
             for (var i = 0; i < parts.length; i++) {
-              var line = unparsed ? (unparsed + parts[i]) : parts[i];
+              var line = unparsed ? unparsed + parts[i] : parts[i];
               if (line.trim()) {
                 try {
                   var payload = JSON.parse(line);
@@ -284,8 +283,8 @@
 
   function getJSON(url, onOk, onErr) {
     var xhr = new XMLHttpRequest();
-    var sep = url.indexOf('?') === -1 ? '?' : '&';
-    var bustUrl = url + sep + '_t=' + new Date().getTime();
+    var sep = url.indexOf("?") === -1 ? "?" : "&";
+    var bustUrl = url + sep + "_t=" + new Date().getTime();
     xhr.open("GET", bustUrl, true);
     xhr.onreadystatechange = function () {
       if (xhr.readyState === 4) {
@@ -315,7 +314,8 @@
     try {
       if (window.external && window.external.Application) return true;
       if (window.CorelDRAW && window.CorelDRAW.Application) return true;
-      if (typeof CorelDRAW !== "undefined" && CorelDRAW.Application) return true;
+      if (typeof CorelDRAW !== "undefined" && CorelDRAW.Application)
+        return true;
     } catch (e) {}
     return false;
   }
@@ -366,12 +366,14 @@
     group.innerHTML = "";
     if (countBadge) {
       countBadge.innerText = virtualShapes.length;
-      countBadge.style.display = virtualShapes.length > 0 ? "inline-block" : "none";
+      countBadge.style.display =
+        virtualShapes.length > 0 ? "inline-block" : "none";
     }
 
     if (!container) return;
     if (virtualShapes.length === 0) {
-      container.innerHTML = '<span class="empty-shapes-hint">Холст пуст. Напишите агенту команду создать фигуру!</span>';
+      container.innerHTML =
+        '<span class="empty-shapes-hint">Холст пуст. Напишите агенту команду создать фигуру!</span>';
       return;
     }
 
@@ -379,12 +381,12 @@
     var i;
     for (i = 0; i < virtualShapes.length; i++) {
       var shape = virtualShapes[i];
-      
+
       try {
         var parser = new DOMParser();
         var svgDoc = parser.parseFromString(
-          '<svg xmlns="http://www.w3.org/2000/svg">' + shape.svg + '</svg>',
-          "image/svg+xml"
+          '<svg xmlns="http://www.w3.org/2000/svg">' + shape.svg + "</svg>",
+          "image/svg+xml",
         );
         var svgNode = svgDoc.documentElement.firstChild;
         if (svgNode) {
@@ -392,7 +394,10 @@
           var posX = shape.x || 150;
           var posY = shape.y || 100;
           var rot = shape.angle || 0;
-          importedNode.setAttribute("transform", "translate(" + posX + ", " + posY + ") rotate(" + rot + ")");
+          importedNode.setAttribute(
+            "transform",
+            "translate(" + posX + ", " + posY + ") rotate(" + rot + ")",
+          );
           group.appendChild(importedNode);
         }
       } catch (eSvg) {
@@ -402,19 +407,19 @@
       var chip = document.createElement("div");
       chip.className = "shape-item-chip";
       chip.title = shape.ref + ": Нажмите чтобы прикрепить";
-      
+
       var dot = document.createElement("span");
       dot.className = "shape-color-preview";
       dot.style.background = shape.fillColor || "#4da6ff";
-      
+
       var nameSpan = document.createElement("span");
       nameSpan.innerText = shape.ref + " (" + (shape.name || "SVG") + ")";
-      
+
       chip.appendChild(dot);
       chip.appendChild(nameSpan);
 
-      (function(s) {
-        chip.onclick = function() {
+      (function (s) {
+        chip.onclick = function () {
           attachVirtualShape(s);
         };
       })(shape);
@@ -426,7 +431,7 @@
   function addVirtualShapeFromSvg(rawSvg, nameHint) {
     virtualShapeCounter += 1;
     var ref = "Shape_" + virtualShapeCounter;
-    
+
     var fillColor = "#4da6ff";
     var colorMatch = rawSvg.match(/fill=["']([^"']+)["']/i);
     if (colorMatch && colorMatch[1] && colorMatch[1] !== "none") {
@@ -434,10 +439,10 @@
     }
 
     var innerContent = rawSvg.replace(/<\/?svg[^>]*>/gi, "");
-    var gSvg = '<g id="' + ref + '">' + innerContent + '</g>';
+    var gSvg = '<g id="' + ref + '">' + innerContent + "</g>";
 
-    var posX = 150 + ((virtualShapeCounter - 1) * 40) % 200;
-    var posY = 100 + ((virtualShapeCounter - 1) * 30) % 150;
+    var posX = 150 + (((virtualShapeCounter - 1) * 40) % 200);
+    var posY = 100 + (((virtualShapeCounter - 1) * 30) % 150);
 
     var shapeObj = {
       ref: ref,
@@ -449,7 +454,7 @@
       y: posY,
       width: 50,
       height: 50,
-      angle: 0
+      angle: 0,
     };
 
     virtualShapes.push(shapeObj);
@@ -463,7 +468,10 @@
     for (i = 0; i < virtualShapes.length; i++) {
       if (!targetRef || virtualShapes[i].ref === targetRef) {
         virtualShapes[i].fillColor = color;
-        virtualShapes[i].svg = virtualShapes[i].svg.replace(/fill=["']([^"']+)["']/g, 'fill="' + color + '"');
+        virtualShapes[i].svg = virtualShapes[i].svg.replace(
+          /fill=["']([^"']+)["']/g,
+          'fill="' + color + '"',
+        );
       }
     }
     renderVirtualCanvas();
@@ -527,7 +535,10 @@
     var i;
     for (i = 0; i < virtualShapes.length; i++) {
       if (!targetRef || virtualShapes[i].ref === targetRef) {
-        return addVirtualShapeFromSvg(virtualShapes[i].rawSvg, virtualShapes[i].name + " (копия)");
+        return addVirtualShapeFromSvg(
+          virtualShapes[i].rawSvg,
+          virtualShapes[i].name + " (копия)",
+        );
       }
     }
     return null;
@@ -543,11 +554,18 @@
           width_mm: virtualShapes[i].width,
           height_mm: virtualShapes[i].height,
           x_mm: virtualShapes[i].x,
-          y_mm: virtualShapes[i].y
+          y_mm: virtualShapes[i].y,
         };
       }
     }
-    return { ref: targetRef || "Shape_1", typeName: "Shape", width_mm: 50, height_mm: 50, x_mm: 100, y_mm: 100 };
+    return {
+      ref: targetRef || "Shape_1",
+      typeName: "Shape",
+      width_mm: 50,
+      height_mm: 50,
+      x_mm: 100,
+      y_mm: 100,
+    };
   }
 
   function attachVirtualShape(shapeObj) {
@@ -560,10 +578,10 @@
         height_mm: shapeObj.height,
         x_mm: shapeObj.x,
         y_mm: shapeObj.y,
-        fill_color: shapeObj.fillColor
+        fill_color: shapeObj.fillColor,
       },
       png_path: "",
-      svg_path: ""
+      svg_path: "",
     });
     renderTray();
   }
@@ -578,7 +596,9 @@
     if (typeof CorelDRAW !== "undefined" && CorelDRAW.Application) {
       return CorelDRAW.Application;
     }
-    throw new Error("CorelDRAW Application API (window.external.Application) недоступен.");
+    throw new Error(
+      "CorelDRAW Application API (window.external.Application) недоступен.",
+    );
   }
 
   function activeDoc() {
@@ -691,20 +711,20 @@
   function toMillimeters(val, unitCode) {
     if (typeof val !== "number" || isNaN(val)) return 0;
     var factors = {
-      1: 25.4,      // inches
-      2: 304.8,     // feet
-      3: 914.4,     // yards
-      4: 1609344,   // miles
-      5: 1.0,       // mm
-      6: 10.0,      // cm
-      7: 1000.0,    // m
+      1: 25.4, // inches
+      2: 304.8, // feet
+      3: 914.4, // yards
+      4: 1609344, // miles
+      5: 1.0, // mm
+      6: 10.0, // cm
+      7: 1000.0, // m
       8: 1000000.0, // km
-      9: 0.3759,    // didots
-      10: 1.814,    // agates
-      11: 4.2333,   // picas
+      9: 0.3759, // didots
+      10: 1.814, // agates
+      11: 4.2333, // picas
       12: 0.352778, // pt
       13: 0.264583, // px
-      14: 4.512     // ciceros
+      14: 4.512, // ciceros
     };
     var factor = factors[unitCode] || 1.0;
     return Math.round(val * factor * 100) / 100;
@@ -723,16 +743,27 @@
       8: "Selection",
       9: "Guideline",
       11: "Custom",
-      12: "Shape"
+      12: "Shape",
     };
-    return types[typeCode] || ("Type_" + typeCode);
+    return types[typeCode] || "Type_" + typeCode;
   }
 
   function getUnitName(unitCode) {
     var units = {
-      1: "inches", 2: "feet", 3: "yards", 4: "miles",
-      5: "mm", 6: "cm", 7: "m", 8: "km",
-      9: "didots", 10: "agates", 11: "picas", 12: "pt", 13: "px", 14: "ciceros"
+      1: "inches",
+      2: "feet",
+      3: "yards",
+      4: "miles",
+      5: "mm",
+      6: "cm",
+      7: "m",
+      8: "km",
+      9: "didots",
+      10: "agates",
+      11: "picas",
+      12: "pt",
+      13: "px",
+      14: "ciceros",
     };
     return units[unitCode] || String(unitCode);
   }
@@ -781,8 +812,12 @@
       if (shape.Text && shape.Text.Story) {
         props.typeName = "Text";
         props.text = shape.Text.Story.Text;
-        try { props.font = shape.Text.Story.Font; } catch (eF) {}
-        try { props.fontSize = shape.Text.Story.Size; } catch (eS) {}
+        try {
+          props.font = shape.Text.Story.Font;
+        } catch (eF) {}
+        try {
+          props.fontSize = shape.Text.Story.Size;
+        } catch (eS) {}
       }
     } catch (e) {}
 
@@ -791,8 +826,29 @@
       props.colors = colorsToArray(colors);
     } catch (e) {}
 
-    props.size_formatted = (props.width_mm || 0) + " x " + (props.height_mm || 0) + " мм (" + props.width + " x " + props.height + " " + (props.docUnitName || "units") + ")";
-    props.position_formatted = "X: " + (props.x_mm || 0) + " мм, Y: " + (props.y_mm || 0) + " мм (" + props.x + ", " + props.y + " " + (props.docUnitName || "units") + ")";
+    props.size_formatted =
+      (props.width_mm || 0) +
+      " x " +
+      (props.height_mm || 0) +
+      " мм (" +
+      props.width +
+      " x " +
+      props.height +
+      " " +
+      (props.docUnitName || "units") +
+      ")";
+    props.position_formatted =
+      "X: " +
+      (props.x_mm || 0) +
+      " мм, Y: " +
+      (props.y_mm || 0) +
+      " мм (" +
+      props.x +
+      ", " +
+      props.y +
+      " " +
+      (props.docUnitName || "units") +
+      ")";
 
     return props;
   }
@@ -902,17 +958,31 @@
       try {
         var shape = requireShape(args.ref);
         if (!shape || !shape.Fill) {
-          cb({ error: "Объект не поддерживает заливку (shape.Fill недоступен)." });
+          cb({
+            error: "Объект не поддерживает заливку (shape.Fill недоступен).",
+          });
           return;
         }
         var fill = shape.Fill;
         var c;
         if (args.cmyk_color) {
           var cmyk = args.cmyk_color;
-          c = cdrApp().CreateColorEx(2 /* cdrColorCMYK */, cmyk.c, cmyk.m, cmyk.y, cmyk.k);
+          c = cdrApp().CreateColorEx(
+            2 /* cdrColorCMYK */,
+            cmyk.c,
+            cmyk.m,
+            cmyk.y,
+            cmyk.k,
+          );
         } else if (args.hex_color) {
           var rgb = hexToRgb(args.hex_color);
-          c = cdrApp().CreateColorEx(1 /* cdrColorRGB */, rgb.r, rgb.g, rgb.b, 0);
+          c = cdrApp().CreateColorEx(
+            1 /* cdrColorRGB */,
+            rgb.r,
+            rgb.g,
+            rgb.b,
+            0,
+          );
         } else {
           cb({ error: "Не указан цвет (требуется hex_color или cmyk_color)." });
           return;
@@ -932,7 +1002,9 @@
       try {
         var shape = requireShape(args.ref);
         if (!shape || !shape.Outline) {
-          cb({ error: "Объект не поддерживает обводку (shape.Outline недоступен)." });
+          cb({
+            error: "Объект не поддерживает обводку (shape.Outline недоступен).",
+          });
           return;
         }
         var outline = shape.Outline;
@@ -946,18 +1018,32 @@
         }
         if (args.cmyk_color) {
           var cmyk = args.cmyk_color;
-          var cCmyk = cdrApp().CreateColorEx(2 /* cdrColorCMYK */, cmyk.c, cmyk.m, cmyk.y, cmyk.k);
+          var cCmyk = cdrApp().CreateColorEx(
+            2 /* cdrColorCMYK */,
+            cmyk.c,
+            cmyk.m,
+            cmyk.y,
+            cmyk.k,
+          );
           outline.Color = cCmyk;
         } else if (args.hex_color) {
           var rgb = hexToRgb(args.hex_color);
-          var cRgb = cdrApp().CreateColorEx(1 /* cdrColorRGB */, rgb.r, rgb.g, rgb.b, 0);
+          var cRgb = cdrApp().CreateColorEx(
+            1 /* cdrColorRGB */,
+            rgb.r,
+            rgb.g,
+            rgb.b,
+            0,
+          );
           outline.Color = cRgb;
         }
         if (args.style) {
           var styleMap = { solid: 1, dash: 2, dot: 3, dash_dot: 4 };
           var lineStyle = styleMap[args.style];
           if (lineStyle && outline.Style) {
-            try { outline.Style = lineStyle; } catch (eStyle) {}
+            try {
+              outline.Style = lineStyle;
+            } catch (eStyle) {}
           }
         }
         cb({ ok: true });
@@ -978,7 +1064,9 @@
         } else if (args.direction === "vertical") {
           shape.Flip(2 /* cdrFlipVertical */);
         } else {
-          cb({ error: "Неизвестное направление отзеркаливания: " + args.direction });
+          cb({
+            error: "Неизвестное направление отзеркаливания: " + args.direction,
+          });
           return;
         }
         cb({ ok: true, direction: args.direction });
@@ -990,7 +1078,13 @@
     set_position: function (args, cb) {
       if (!isCdrAvailable()) {
         updateVirtualShapePos(args.ref, args.x, args.y);
-        cb({ ok: true, x: args.x, y: args.y, anchor: args.anchor || "top_left", unit: "мм" });
+        cb({
+          ok: true,
+          x: args.x,
+          y: args.y,
+          anchor: args.anchor || "top_left",
+          unit: "мм",
+        });
         return;
       }
       try {
@@ -1043,7 +1137,12 @@
             unitName = getUnitName(doc.Unit);
           }
         } catch (e) {}
-        cb({ ok: true, width: args.width, height: args.height, unit: unitName });
+        cb({
+          ok: true,
+          width: args.width,
+          height: args.height,
+          unit: unitName,
+        });
       } catch (e) {
         cb({ error: "Ошибка установки размера: " + e.message });
       }
@@ -1132,7 +1231,9 @@
           shape.OrderBackOne();
         } else if (mode === "in_front_of" || mode === "behind") {
           if (!args.target_ref) {
-            cb({ error: "Для режима " + mode + " требуется параметр target_ref." });
+            cb({
+              error: "Для режима " + mode + " требуется параметр target_ref.",
+            });
             return;
           }
           var targetShape = requireShape(args.target_ref);
@@ -1163,7 +1264,7 @@
             ok: true,
             ref: args.ref,
             svg_path: backendPaths.svg_path,
-            png_path: backendPaths.png_path
+            png_path: backendPaths.png_path,
           });
         });
       } catch (e) {
@@ -1173,7 +1274,10 @@
 
     import_svg: function (args, cb) {
       if (!isCdrAvailable()) {
-        var svgCode = args.raw_svg || args.svg || '<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50"><circle cx="25" cy="25" r="25" fill="#4da6ff"/></svg>';
+        var svgCode =
+          args.raw_svg ||
+          args.svg ||
+          '<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50"><circle cx="25" cy="25" r="25" fill="#4da6ff"/></svg>';
         var vShape = addVirtualShapeFromSvg(svgCode, "Векторный объект");
         cb({ ok: true, new_ref: vShape.ref });
         return;
@@ -1198,7 +1302,11 @@
         } catch (e) {
           /* ignore */
         }
-        if (newRef && typeof args.x === "number" && typeof args.y === "number") {
+        if (
+          newRef &&
+          typeof args.x === "number" &&
+          typeof args.y === "number"
+        ) {
           try {
             var target = findShapeByRef(newRef);
             if (target) {
@@ -1247,7 +1355,9 @@
         if (preserveSize && width > 0 && height > 0) {
           newShape.SetSize(width, height);
         }
-        try { newShape.OrderToFrontOf(oldShape); } catch (eOrd) {}
+        try {
+          newShape.OrderToFrontOf(oldShape);
+        } catch (eOrd) {}
         oldShape.Delete();
         delete shapeRegistry[args.ref];
 
@@ -1276,7 +1386,10 @@
         var shape = requireShape(args.ref);
         if (!shape || shape.Type !== 4 /* cdrBitmapShape */) {
           cb({
-            error: "Выбранный объект не является растровым изображением (битмапом). Код типа объекта: " + (shape ? shape.Type : "undefined") + " (требуется cdrBitmapShape = 4). Пожалуйста, выберите растр для трассировки."
+            error:
+              "Выбранный объект не является растровым изображением (битмапом). Код типа объекта: " +
+              (shape ? shape.Type : "undefined") +
+              " (требуется cdrBitmapShape = 4). Пожалуйста, выберите растр для трассировки.",
           });
           return;
         }
@@ -1293,7 +1406,10 @@
         var traceType = styleMap[args.style] || 6;
         var bitmap = shape.Bitmap;
         if (!bitmap) {
-          cb({ error: "Объект не содержит растровых данных (shape.Bitmap недоступен)." });
+          cb({
+            error:
+              "Объект не содержит растровых данных (shape.Bitmap недоступен).",
+          });
           return;
         }
         bitmap.Trace(traceType);
@@ -1324,7 +1440,7 @@
           size_formatted: "A4 (210 x 297 мм) [Песочница Web]",
           unit: "мм",
           shapes_count: virtualShapes.length,
-          shapes: virtualShapes
+          shapes: virtualShapes,
         });
         return;
       }
@@ -1366,15 +1482,27 @@
           height: heightDoc,
           width_mm: widthMm,
           height_mm: heightMm,
-          size_formatted: widthMm + " x " + heightMm + " мм (" + widthDoc + " x " + heightDoc + " " + unitName + ")",
+          size_formatted:
+            widthMm +
+            " x " +
+            heightMm +
+            " мм (" +
+            widthDoc +
+            " x " +
+            heightDoc +
+            " " +
+            unitName +
+            ")",
           unit: unitName,
           unit_code: unitCode,
           shapes_count: shapeList.length,
-          shapes: shapeList
+          shapes: shapeList,
         };
         cb(info);
       } catch (e) {
-        cb({ error: "Ошибка при получении информации о странице: " + e.message });
+        cb({
+          error: "Ошибка при получении информации о странице: " + e.message,
+        });
       }
     },
 
@@ -1382,7 +1510,10 @@
       try {
         var shape = requireShape(args.ref);
         if (!shape || !shape.Text || !shape.Text.Story) {
-          cb({ error: "Объект не содержит текстовых данных (shape.Text.Story недоступен)." });
+          cb({
+            error:
+              "Объект не содержит текстовых данных (shape.Text.Story недоступен).",
+          });
           return;
         }
         if (typeof args.text === "string") {
@@ -1390,27 +1521,45 @@
         }
         var textStory = shape.Text.Story;
         if (args.font_name && textStory.Font) {
-          try { textStory.Font = args.font_name; } catch (eF) {}
+          try {
+            textStory.Font = args.font_name;
+          } catch (eF) {}
         }
         if (typeof args.font_size === "number" && textStory.Size) {
-          try { textStory.Size = args.font_size; } catch (eS) {}
+          try {
+            textStory.Size = args.font_size;
+          } catch (eS) {}
         }
         if (args.alignment && textStory.Alignment) {
           var alignMap = { left: 1, center: 2, right: 3, justify: 4 };
           if (alignMap[args.alignment]) {
-            try { textStory.Alignment = alignMap[args.alignment]; } catch (eA) {}
+            try {
+              textStory.Alignment = alignMap[args.alignment];
+            } catch (eA) {}
           }
         }
         if (args.cmyk_color && textStory.Fill) {
           try {
             var cmyk = args.cmyk_color;
-            var cCmyk = cdrApp().CreateColorEx(2 /* cdrColorCMYK */, cmyk.c, cmyk.m, cmyk.y, cmyk.k);
+            var cCmyk = cdrApp().CreateColorEx(
+              2 /* cdrColorCMYK */,
+              cmyk.c,
+              cmyk.m,
+              cmyk.y,
+              cmyk.k,
+            );
             textStory.Fill.ApplyUniformFill(cCmyk);
           } catch (eCmyk) {}
         } else if (args.hex_color && textStory.Fill) {
           try {
             var rgb = hexToRgb(args.hex_color);
-            var cRgb = cdrApp().CreateColorEx(1 /* cdrColorRGB */, rgb.r, rgb.g, rgb.b, 0);
+            var cRgb = cdrApp().CreateColorEx(
+              1 /* cdrColorRGB */,
+              rgb.r,
+              rgb.g,
+              rgb.b,
+              0,
+            );
             textStory.Fill.ApplyUniformFill(cRgb);
           } catch (eRgb) {}
         }
@@ -1638,21 +1787,41 @@
           low_quality_image: "Low quality image",
           high_quality_image: "High quality image",
           technical: "Technical",
-          line_drawing: "Line drawing"
+          line_drawing: "Line drawing",
         };
         var styleStr = styleNameMap[args.style] || args.style || "Image";
         summary = "Trace(" + refPrefix + styleStr + ")";
         break;
 
       case "set_fill_color":
-        var colorStr = args.hex_color || (args.cmyk_color ? "CMYK(" + args.cmyk_color.c + "," + args.cmyk_color.m + "," + args.cmyk_color.y + "," + args.cmyk_color.k + ")" : "color");
+        var colorStr =
+          args.hex_color ||
+          (args.cmyk_color
+            ? "CMYK(" +
+              args.cmyk_color.c +
+              "," +
+              args.cmyk_color.m +
+              "," +
+              args.cmyk_color.y +
+              "," +
+              args.cmyk_color.k +
+              ")"
+            : "color");
         summary = "Fill(" + refPrefix + colorStr + ")";
         break;
 
       case "set_outline":
-        var outColor = args.hex_color || (args.cmyk_color ? "CMYK(" + args.cmyk_color.c + "," + args.cmyk_color.m + ")" : "");
-        var outW = (args.width_mm || args.width) ? (args.width_mm || args.width) + "mm" : "";
-        var outStr = (outW && outColor) ? outW + " " + outColor : (outW || outColor);
+        var outColor =
+          args.hex_color ||
+          (args.cmyk_color
+            ? "CMYK(" + args.cmyk_color.c + "," + args.cmyk_color.m + ")"
+            : "");
+        var outW =
+          args.width_mm || args.width
+            ? (args.width_mm || args.width) + "mm"
+            : "";
+        var outStr =
+          outW && outColor ? outW + " " + outColor : outW || outColor;
         summary = "Outline(" + refPrefix + outStr + ")";
         break;
 
@@ -1692,7 +1861,7 @@
           forward: "Forward",
           backward: "Backward",
           in_front_of: "In front of",
-          behind: "Behind"
+          behind: "Behind",
         };
         var modeStr = modeMap[args.mode] || args.mode || "";
         var targetStr = args.target_ref ? " -> " + args.target_ref : "";
@@ -1706,8 +1875,16 @@
       case "import_svg":
         var svgContent = args.svg_content || args.svg || "";
         var svgLen = svgContent.length;
-        var svgHint = svgLen > 0 ? (svgLen > 500 ? Math.round(svgLen/1024*10)/10 + "kb" : svgLen + "b") : "";
-        var locStr = (typeof args.x === "number" && typeof args.y === "number") ? args.x + ", " + args.y : "";
+        var svgHint =
+          svgLen > 0
+            ? svgLen > 500
+              ? Math.round((svgLen / 1024) * 10) / 10 + "kb"
+              : svgLen + "b"
+            : "";
+        var locStr =
+          typeof args.x === "number" && typeof args.y === "number"
+            ? args.x + ", " + args.y
+            : "";
         var svgParts = [];
         if (args.ref) svgParts.push(args.ref);
         if (svgHint) svgParts.push("svg:" + svgHint);
@@ -1732,7 +1909,7 @@
         if (tPreview.length > 20) {
           tPreview = tPreview.substring(0, 17) + "...";
         }
-        summary = 'Set text(' + refPrefix + '"' + tPreview + '")';
+        summary = "Set text(" + refPrefix + '"' + tPreview + '")';
         break;
 
       case "group_shapes":
@@ -1758,7 +1935,8 @@
 
       default:
         var formattedName = name.replace(/_/g, " ");
-        formattedName = formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
+        formattedName =
+          formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
         var argKeys = Object.keys(args);
         var simpleArgs = [];
         for (var k = 0; k < argKeys.length; k++) {
@@ -1812,7 +1990,10 @@
         return "Обводка успешно настроена";
 
       case "flip":
-        return "Объект успешно отзеркален" + (res.direction ? " (" + res.direction + ")" : "");
+        return (
+          "Объект успешно отзеркален" +
+          (res.direction ? " (" + res.direction + ")" : "")
+        );
 
       case "set_position":
         if (typeof res.x === "number" && typeof res.y === "number") {
@@ -1827,7 +2008,10 @@
         return "Размер объекта изменён";
 
       case "rotate":
-        return "Объект повёрнут на " + (res.angle !== undefined ? res.angle + "°" : "");
+        return (
+          "Объект повёрнут на " +
+          (res.angle !== undefined ? res.angle + "°" : "")
+        );
 
       case "duplicate":
         return "Создана копия объекта: " + (res.new_ref || "");
@@ -1859,8 +2043,12 @@
           var info = res.info;
           var parts = [];
           if (info.typeName) parts.push("Тип: " + info.typeName);
-          if (info.width_mm && info.height_mm) parts.push("Размер: " + info.width_mm + "x" + info.height_mm + " мм");
-          if (info.x_mm !== undefined && info.y_mm !== undefined) parts.push("Позиция: (" + info.x_mm + ", " + info.y_mm + ") мм");
+          if (info.width_mm && info.height_mm)
+            parts.push(
+              "Размер: " + info.width_mm + "x" + info.height_mm + " мм",
+            );
+          if (info.x_mm !== undefined && info.y_mm !== undefined)
+            parts.push("Позиция: (" + info.x_mm + ", " + info.y_mm + ") мм");
           if (info.ref) parts.push("ref: " + info.ref);
           return parts.join(" | ") || "Информация об объекте получена";
         }
@@ -1868,7 +2056,12 @@
 
       case "get_page_info":
         if (res.shapes_count !== undefined) {
-          return "Размер страницы: " + (res.size_formatted || (res.width_mm + "x" + res.height_mm + " мм")) + " | Объектов на странице: " + res.shapes_count;
+          return (
+            "Размер страницы: " +
+            (res.size_formatted || res.width_mm + "x" + res.height_mm + " мм") +
+            " | Объектов на странице: " +
+            res.shapes_count
+          );
         }
         return "Информация о странице получена";
 
@@ -1911,9 +2104,10 @@
     var details = el("div", "msg-tool-details");
     details.style.display = "none";
 
-    var formattedArgsStr = (args && Object.keys(args).length > 0)
-      ? JSON.stringify(args, null, 2)
-      : "{ }";
+    var formattedArgsStr =
+      args && Object.keys(args).length > 0
+        ? JSON.stringify(args, null, 2)
+        : "{ }";
 
     var currentResultText = "Выполняется...";
     var currentIsError = false;
@@ -1925,7 +2119,11 @@
       var argsCode = el("pre", "msg-tool-code", formattedArgsStr);
 
       var resHeader = el("div", "msg-tool-section-title", "Результат:");
-      var resContent = el("div", "msg-tool-res-text" + (currentIsError ? " is-error" : ""), currentResultText);
+      var resContent = el(
+        "div",
+        "msg-tool-res-text" + (currentIsError ? " is-error" : ""),
+        currentResultText,
+      );
 
       details.appendChild(argsHeader);
       details.appendChild(argsCode);
@@ -1986,7 +2184,10 @@
 
     if (a.ref === "custom") {
       var name = a.name || "";
-      if (/\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name) || (props.type && props.type.indexOf("image/") === 0)) {
+      if (
+        /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name) ||
+        (props.type && props.type.indexOf("image/") === 0)
+      ) {
         return "Image";
       }
       return name || "File";
@@ -2010,7 +2211,11 @@
     if (typeCode === 3 || typeName === "Curve") {
       return "Curve";
     }
-    if (typeCode === 12 || typeName === "Shape" || typeName === "PerfectShape") {
+    if (
+      typeCode === 12 ||
+      typeName === "Shape" ||
+      typeName === "PerfectShape"
+    ) {
       return "Shape";
     }
 
@@ -2030,9 +2235,15 @@
     }
     var humanType = getHumanReadableObjectName(a);
     var tag = el("span", "tag", humanType);
-    var displayLabel = (a.ref && a.ref !== "custom") ? humanType + " (" + a.ref + ")" : (a.name || humanType);
+    var displayLabel =
+      a.ref && a.ref !== "custom"
+        ? humanType + " (" + a.ref + ")"
+        : a.name || humanType;
     var label = el("div", "label", displayLabel);
-    card.title = (a.ref && a.ref !== "custom") ? humanType + " [" + a.ref + "]" : displayLabel;
+    card.title =
+      a.ref && a.ref !== "custom"
+        ? humanType + " [" + a.ref + "]"
+        : displayLabel;
     card.appendChild(thumb);
     card.appendChild(tag);
     card.appendChild(label);
@@ -2112,22 +2323,28 @@
   function uploadCustomFile(file) {
     var formData = new FormData();
     formData.append("file", file, file.name || "pasted_image.png");
-    
+
     var xhr = new XMLHttpRequest();
     xhr.open("POST", "/upload_attachment", true);
-    xhr.onload = function() {
+    xhr.onload = function () {
       if (xhr.status === 200) {
         try {
           var res = JSON.parse(xhr.responseText);
-          var isImg = /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(res.name) || (file.type && file.type.indexOf("image/") === 0);
+          var isImg =
+            /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(res.name) ||
+            (file.type && file.type.indexOf("image/") === 0);
           var humanType = isImg ? "Image" : "File";
           staged.push({
             ref: "custom",
             name: res.name,
             display_name: humanType,
-            properties: { type: file.type || "file", size: file.size, typeName: humanType },
+            properties: {
+              type: file.type || "file",
+              size: file.size,
+              typeName: humanType,
+            },
             png_path: res.png_path,
-            svg_path: null
+            svg_path: null,
           });
           renderTray();
         } catch (e) {
@@ -2137,7 +2354,7 @@
         addActionEntry("Ошибка загрузки файла", true);
       }
     };
-    xhr.onerror = function() {
+    xhr.onerror = function () {
       addActionEntry("Сетевая ошибка при загрузке файла", true);
     };
     xhr.send(formData);
@@ -2150,7 +2367,7 @@
       customFileInput.type = "file";
       customFileInput.multiple = true;
       customFileInput.style.display = "none";
-      customFileInput.onchange = function(e) {
+      customFileInput.onchange = function (e) {
         var files = e.target.files;
         if (!files) return;
         var i;
@@ -2166,16 +2383,16 @@
 
   // Base64 to Blob helper for IE11
   function dataURItoBlob(dataURI) {
-    var parts = dataURI.split(',');
+    var parts = dataURI.split(",");
     var byteString = atob(parts[1]);
-    var mimeString = parts[0].split(':')[1].split(';')[0];
+    var mimeString = parts[0].split(":")[1].split(";")[0];
     var ab = new ArrayBuffer(byteString.length);
     var ia = new Uint8Array(ab);
     var i;
     for (i = 0; i < byteString.length; i += 1) {
-        ia[i] = byteString.charCodeAt(i);
+      ia[i] = byteString.charCodeAt(i);
     }
-    return new Blob([ab], {type: mimeString});
+    return new Blob([ab], { type: mimeString });
   }
 
   var isIE11 = !!window.MSInputMethodContext && !!document.documentMode;
@@ -2192,11 +2409,13 @@
     pasteCatcher.style.overflow = "hidden";
     document.body.appendChild(pasteCatcher);
 
-    document.addEventListener("keydown", function(e) {
+    document.addEventListener("keydown", function (e) {
       if (e.ctrlKey && (e.keyCode === 86 || e.key === "v" || e.key === "V")) {
         var active = document.activeElement;
-        
-        var start = 0, end = 0, hasSelection = false;
+
+        var start = 0,
+          end = 0,
+          hasSelection = false;
         if (active && typeof active.selectionStart !== "undefined") {
           start = active.selectionStart;
           end = active.selectionEnd;
@@ -2205,7 +2424,7 @@
 
         pasteCatcher.focus();
 
-        setTimeout(function() {
+        setTimeout(function () {
           var child = pasteCatcher.firstChild;
           var foundImage = false;
           while (child) {
@@ -2226,11 +2445,13 @@
             var pastedText = pasteCatcher.innerText || pasteCatcher.textContent;
             if (pastedText && active && hasSelection) {
               var text = active.value || "";
-              active.value = text.substring(0, start) + pastedText + text.substring(end);
-              active.selectionStart = active.selectionEnd = start + pastedText.length;
+              active.value =
+                text.substring(0, start) + pastedText + text.substring(end);
+              active.selectionStart = active.selectionEnd =
+                start + pastedText.length;
             }
           }
-          
+
           pasteCatcher.innerHTML = "";
           if (active) active.focus();
         }, 50);
@@ -2239,16 +2460,16 @@
   }
 
   // Handle Ctrl+V paste (Modern browsers)
-  document.addEventListener("paste", function(e) {
+  document.addEventListener("paste", function (e) {
     if (isIE11) return; // Handled by keydown hack above
 
     var clipboardData = e.clipboardData || window.clipboardData;
     if (!clipboardData) return;
-    
+
     var i, file;
     if (clipboardData.items) {
       for (i = 0; i < clipboardData.items.length; i += 1) {
-        if (clipboardData.items[i].kind === 'file') {
+        if (clipboardData.items[i].kind === "file") {
           file = clipboardData.items[i].getAsFile();
           if (file) {
             uploadCustomFile(file);
@@ -2296,7 +2517,10 @@
       (function (shape) {
         var ref = ensureShapeName(shape);
         var props = readShapeProperties(shape);
-        var humanType = getHumanReadableObjectName({ ref: ref, properties: props });
+        var humanType = getHumanReadableObjectName({
+          ref: ref,
+          properties: props,
+        });
         getJSON(
           "/export_paths",
           function (paths) {
@@ -2314,7 +2538,7 @@
           },
           function (err) {
             addActionEntry("Ошибка экспорта: " + err.message, true);
-          }
+          },
         );
       })(sel.Item(i));
     }
@@ -2329,7 +2553,7 @@
       // Docker-specific bridge call documented by Corel for Web Dockers.
       window.external.RegisterEventListener(
         "SelectionChange",
-        "onSelectionChange()"
+        "onSelectionChange()",
       );
     } catch (e) {
       log("RegisterEventListener unavailable: " + e.message);
@@ -2341,7 +2565,7 @@
       if (window.external && window.external.UnregisterEventListener) {
         window.external.UnregisterEventListener(
           "SelectionChange",
-          "onSelectionChange()"
+          "onSelectionChange()",
         );
       }
     } catch (e) {
@@ -2456,7 +2680,7 @@
         adjustMessagesAlignment();
         addActionEntry("Backend недоступен: " + err.message, true);
         if (onDone) onDone();
-      }
+      },
     );
   }
 
@@ -2478,7 +2702,7 @@
     for (i = 0; i < staged.length; i += 1) {
       addAttachmentBubble(staged[i]);
     }
-    
+
     var currentStaged = staged;
 
     input.value = "";
@@ -2508,7 +2732,13 @@
       } else {
         activeUserMsgTop = null;
       }
-      streamBackendResponse("/chat", { message: text, attachments: currentStaged });
+      streamBackendResponse(
+        "/tool_result",
+        { tool_call_id: call.id, result: result, chat_id: currentChatId },
+        function () {
+          runToolCallsSequentially(calls, index + 1, onAllDone);
+        },
+      );
     }, 20);
   }
 
@@ -2531,10 +2761,10 @@
       toolBlock.setResult(resultText, isError);
       streamBackendResponse(
         "/tool_result",
-        { tool_call_id: call.id, result: result },
+        { tool_call_id: call.id, result: result, chat_id: currentChatId },
         function () {
           runToolCallsSequentially(calls, index + 1, onAllDone);
-        }
+        },
       );
     }
 
@@ -2561,7 +2791,7 @@
         },
         function (err) {
           finish({ error: "Не удалось получить export_paths: " + err.message });
-        }
+        },
       );
       return;
     }
@@ -2588,7 +2818,7 @@
           finish({
             error: "Не удалось выполнить prepare_import: " + err.message,
           });
-        }
+        },
       );
       return;
     }
@@ -2612,7 +2842,7 @@
       },
       function () {
         // byId('statusDot').className = '';
-      }
+      },
     );
   }
 
@@ -2762,10 +2992,10 @@
                       { index: acc.id, name: newName.trim() },
                       function () {
                         loadAccounts();
-                      }
+                      },
                     );
                   }
-                }
+                },
               );
             };
 
@@ -2812,7 +3042,7 @@
       },
       function (err) {
         console.error("Failed to load accounts", err);
-      }
+      },
     );
   }
 
@@ -2840,7 +3070,7 @@
         postJSON("/auth/logout", { index: idx }, function () {
           loadAccounts();
         });
-      }
+      },
     );
   }
 
@@ -2891,8 +3121,13 @@
     sidebarNewChatBtn.onclick = createNewChat;
   }
 
+  var currentChatId = "default";
+
   function loadChats() {
     getJSON("/chats", function (res) {
+      if (res.current_id) {
+        currentChatId = res.current_id;
+      }
       chatList.innerHTML = "";
       if (res.chats) {
         res.chats.forEach(function (chat) {
@@ -2936,7 +3171,7 @@
                   { id: chat.id, title: newTitle },
                   function () {
                     loadChats();
-                  }
+                  },
                 );
               } else {
                 loadChats();
@@ -3012,7 +3247,11 @@
       if (res.messages && res.messages.length > 0) {
         res.messages.forEach(function (m) {
           if (m.role === "user") {
-            if (m.content && typeof m.content === "string" && m.content.trim() !== "") {
+            if (
+              m.content &&
+              typeof m.content === "string" &&
+              m.content.trim() !== ""
+            ) {
               addMessage("user", m.content);
             }
             if (m.attachments && m.attachments.length > 0) {
@@ -3021,10 +3260,18 @@
               });
             }
           } else if (m.role === "assistant") {
-            if (m.thought && typeof m.thought === "string" && m.thought.trim() !== "") {
+            if (
+              m.thought &&
+              typeof m.thought === "string" &&
+              m.thought.trim() !== ""
+            ) {
               addReasoning(m.thought);
             }
-            if (m.content && typeof m.content === "string" && m.content.trim() !== "") {
+            if (
+              m.content &&
+              typeof m.content === "string" &&
+              m.content.trim() !== ""
+            ) {
               addMessage("agent", m.content);
             }
             if (m.tool_calls) {
@@ -3056,16 +3303,16 @@
           '<circle cx="12" cy="12" r="10"></circle>' +
           '<path d="M12 16v-4"></path>' +
           '<path d="M12 8h.01"></path>' +
-          '</svg>' +
-          '</div>' +
+          "</svg>" +
+          "</div>" +
           '<div class="splash-title">AI Assistant for CorelDRAW</div>' +
           '<div class="splash-subtitle">Выберите объект в документе или попросите сгенерировать дизайн</div>' +
           '<div class="prompt-suggestions">' +
           '<button class="prompt-chip" data-prompt="Создай красный круг размером 50х50 мм по центру">Красный круг 50x50 мм</button>' +
           '<button class="prompt-chip" data-prompt="Нарисуй синий прямоугольник 100х60 мм">Синий прямоугольник</button>' +
           '<button class="prompt-chip" data-prompt="Создай золотую пятиконечную звезду">Золотая звезда</button>' +
-          '</div>' +
-          '</div>';
+          "</div>" +
+          "</div>";
 
         // Bind prompt chips
         var chips = document.querySelectorAll(".prompt-chip");
@@ -3249,7 +3496,12 @@
             var target = e.target || e.srcElement;
 
             // If user clicked delete button, do not switch model
-            if (target && (target === delBtn || (target.className && String(target.className).indexOf("model-delete-btn") > -1))) {
+            if (
+              target &&
+              (target === delBtn ||
+                (target.className &&
+                  String(target.className).indexOf("model-delete-btn") > -1))
+            ) {
               return;
             }
 
@@ -3334,7 +3586,10 @@
   if (modelSelectCurrent && modelSelectList) {
     modelSelectCurrent.onclick = function () {
       if (modelSelectList.className.indexOf("show") > -1) {
-        modelSelectList.className = modelSelectList.className.replace(" show", "");
+        modelSelectList.className = modelSelectList.className.replace(
+          " show",
+          "",
+        );
       } else {
         modelSelectList.className += " show";
       }
@@ -3359,20 +3614,29 @@
         } else {
           var curr = target;
           while (curr) {
-            if (curr === wrapper) { isInside = true; break; }
+            if (curr === wrapper) {
+              isInside = true;
+              break;
+            }
             curr = curr.parentNode;
           }
         }
       } catch (err) {
         var node = target;
         while (node) {
-          if (node === wrapper) { isInside = true; break; }
+          if (node === wrapper) {
+            isInside = true;
+            break;
+          }
           node = node.parentNode;
         }
       }
 
       if (!isInside) {
-        modelSelectList.className = modelSelectList.className.replace(" show", "");
+        modelSelectList.className = modelSelectList.className.replace(
+          " show",
+          "",
+        );
       }
     });
   }
@@ -3454,14 +3718,19 @@
     }
 
     var statusRow = byId("statusRow");
-    var isNewerAvailable = !!info.update_available && compareSemver(info.latest_version, info.version) > 0;
+    var isNewerAvailable =
+      !!info.update_available &&
+      compareSemver(info.latest_version, info.version) > 0;
 
     if (isNewerAvailable) {
       if (updateBadge) updateBadge.style.display = "inline-block";
       if (updateBanner) updateBanner.style.display = "flex";
       if (statusRow) statusRow.style.display = "none";
-      if (latestVersionVal) latestVersionVal.innerText = "v" + info.latest_version;
-      if (releaseNotesText) releaseNotesText.innerText = info.release_notes || "Улучшения и исправления стабильности.";
+      if (latestVersionVal)
+        latestVersionVal.innerText = "v" + info.latest_version;
+      if (releaseNotesText)
+        releaseNotesText.innerText =
+          info.release_notes || "Улучшения и исправления стабильности.";
       if (updateDetailsBox) updateDetailsBox.style.display = "block";
     } else {
       if (updateBadge) updateBadge.style.display = "none";
@@ -3495,14 +3764,20 @@
       updateStatusText.innerText = "Проверка обновлений...";
       updateStatusText.style.color = "#00a8ff";
     }
-    postJSON("/updater/check", mockVersion ? { mock_version: mockVersion } : {}, function (info) {
-      updateUpdaterUI(info, manual);
-    }, function (err) {
-      if (updateStatusText) {
-        updateStatusText.innerText = "Ошибка проверки: " + (err ? err.message : "Ошибка сети");
-        updateStatusText.style.color = "#ff6b6b";
-      }
-    });
+    postJSON(
+      "/updater/check",
+      mockVersion ? { mock_version: mockVersion } : {},
+      function (info) {
+        updateUpdaterUI(info, manual);
+      },
+      function (err) {
+        if (updateStatusText) {
+          updateStatusText.innerText =
+            "Ошибка проверки: " + (err ? err.message : "Ошибка сети");
+          updateStatusText.style.color = "#ff6b6b";
+        }
+      },
+    );
   }
 
   if (checkUpdateBtn) {
@@ -3523,14 +3798,21 @@
           }
         },
         function (err) {
-          addActionEntry("Ошибка сохранения настроек автообновления: " + (err ? err.message : "ошибка сети"), true);
-        }
+          addActionEntry(
+            "Ошибка сохранения настроек автообновления: " +
+              (err ? err.message : "ошибка сети"),
+            true,
+          );
+        },
       );
     };
   }
 
   function reloadWhenBackendReady() {
-    showCustomModal("Перезапуск сервера", "Ожидание завершения перезапуска сервера. Пожалуйста, подождите...");
+    showCustomModal({
+      title: "Перезапуск сервера",
+      body: "Ожидание завершения перезапуска сервера. Пожалуйста, подождите...",
+    });
     var okBtn = byId("customModalOk");
     if (okBtn) {
       okBtn.disabled = true;
@@ -3548,7 +3830,7 @@
         },
         function () {
           setTimeout(checkHealth, 1000);
-        }
+        },
       );
     }
     setTimeout(checkHealth, 1200);
@@ -3558,40 +3840,80 @@
     applyUpdateBtn.onclick = function () {
       applyUpdateBtn.disabled = true;
       applyUpdateBtn.innerText = "Установка...";
-      postJSON("/updater/apply", {}, function (res) {
-        applyUpdateBtn.disabled = false;
-        applyUpdateBtn.innerText = "Загрузить и установить обновление";
-        if (res && res.status === "success") {
-          closeUpdaterModal();
-          showCustomModal("Успешно!", "Обновление v" + res.version + " успешно установлено.", function () {
-            reloadWhenBackendReady();
+      postJSON(
+        "/updater/apply",
+        {},
+        function (res) {
+          applyUpdateBtn.disabled = false;
+          applyUpdateBtn.innerText = "Загрузить и установить обновление";
+          if (res && res.status === "success") {
+            closeUpdaterModal();
+            showCustomModal({
+              title: "Успешно!",
+              body: "Обновление v" + res.version + " успешно установлено.",
+              onOk: function () {
+                reloadWhenBackendReady();
+              },
+            });
+          } else {
+            showCustomModal({
+              title: "Ошибка",
+              body:
+                "Не удалось установить обновление: " +
+                (res ? res.message : "неизвестно"),
+            });
+          }
+        },
+        function (err) {
+          applyUpdateBtn.disabled = false;
+          applyUpdateBtn.innerText = "Загрузить и установить обновление";
+          showCustomModal({
+            title: "Ошибка",
+            body:
+              "Ошибка установки: " + (err ? err.message : "неизвестная ошибка"),
           });
-        } else {
-          showCustomModal("Ошибка", "Не удалось установить обновление: " + (res ? res.message : "неизвестно"));
-        }
-      }, function (err) {
-        applyUpdateBtn.disabled = false;
-        applyUpdateBtn.innerText = "Загрузить и установить обновление";
-        showCustomModal("Ошибка", "Ошибка установки: " + (err ? err.message : "неизвестная ошибка"));
-      });
+        },
+      );
     };
   }
 
   if (rollbackBtn) {
     rollbackBtn.onclick = function () {
-      showCustomModal("Откат версии", "Вы уверены, что хотите откатить приложение к предыдущей сохраненной версии?", function () {
-        postJSON("/updater/rollback", {}, function (res) {
-          if (res && res.status === "success") {
-            closeUpdaterModal();
-            showCustomModal("Успех", "Приложение откачено к версии v" + res.version + ".", function () {
-              reloadWhenBackendReady();
-            });
-          } else {
-            showCustomModal("Ошибка", "Не удалось откатить версию: " + (res ? res.message : "неизвестно"));
-          }
-        }, function (err) {
-          showCustomModal("Ошибка", "Ошибка при откате: " + (err ? err.message : "ошибка сети"));
-        });
+      showCustomModal({
+        title: "Откат версии",
+        body: "Вы уверены, что хотите откатить приложение к предыдущей сохраненной версии?",
+        onOk: function () {
+          postJSON(
+            "/updater/rollback",
+            {},
+            function (res) {
+              if (res && res.status === "success") {
+                closeUpdaterModal();
+                showCustomModal({
+                  title: "Успех",
+                  body: "Приложение откачено к версии v" + res.version + ".",
+                  onOk: function () {
+                    reloadWhenBackendReady();
+                  },
+                });
+              } else {
+                showCustomModal({
+                  title: "Ошибка",
+                  body:
+                    "Не удалось откатить версию: " +
+                    (res ? res.message : "неизвестно"),
+                });
+              }
+            },
+            function (err) {
+              showCustomModal({
+                title: "Ошибка",
+                body:
+                  "Ошибка при откате: " + (err ? err.message : "ошибка сети"),
+              });
+            },
+          );
+        },
       });
     };
   }
