@@ -71,6 +71,7 @@ def fix_browser_emulation():
 fix_browser_emulation()
 
 app = Flask(__name__, static_folder=None)
+chats_lock = threading.Lock()
 
 client = get_current_client()
 CHATS, CURRENT_CHAT_ID = load_chats()
@@ -185,26 +186,46 @@ def stream_agent_loop(chat_id):
     messages = [Message(role="system", content=SYSTEM_PROMPT)] + chat_messages
 
     q = queue.Queue()
+    cancel_event = threading.Event()
 
     def worker():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        try:
-            gen = loop.run_until_complete(
-                client.generate(
-                    model=AI_MODEL, messages=messages, tools=TOOLS, stream=True
-                )
+
+        async def generate_task():
+            gen = await client.generate(
+                model=AI_MODEL, messages=messages, tools=TOOLS, stream=True
             )
-            while True:
-                try:
-                    chunk = loop.run_until_complete(gen.__anext__())
-                    q.put(("chunk", chunk))
-                except StopAsyncIteration:
+            async for chunk in gen:
+                if cancel_event.is_set():
                     break
+                q.put(("chunk", chunk))
+
+        async def cancel_watcher(task):
+            while not task.done():
+                if cancel_event.is_set():
+                    task.cancel()
+                    break
+                await asyncio.sleep(0.1)
+
+        try:
+            main_task = loop.create_task(generate_task())
+            watcher_task = loop.create_task(cancel_watcher(main_task))
+            loop.run_until_complete(main_task)
+        except asyncio.CancelledError:
+            pass
         except Exception as e:
             q.put(("error", str(e)))
         finally:
             q.put(("done", None))
+            # Корректно завершаем оставшиеся задачи и закраваем event loop
+            pending = asyncio.all_tasks(loop)
+            for t in pending:
+                t.cancel()
+            if pending:
+                loop.run_until_complete(
+                    asyncio.gather(*pending, return_exceptions=True)
+                )
             loop.close()
 
     threading.Thread(target=worker, daemon=True).start()
@@ -213,87 +234,99 @@ def stream_agent_loop(chat_id):
     full_thought = ""
     has_tools = False
 
-    while True:
-        msg_type, chunk = q.get()
+    try:
+        while True:
+            msg_type, chunk = q.get()
 
-        if msg_type == "done":
-            break
-        elif msg_type == "error":
-            yield (
-                json.dumps({"type": "error", "error": chunk}, ensure_ascii=False) + "\n"
-            ).encode("utf-8")
-            break
-        elif msg_type == "chunk":
-            chunk_text = getattr(chunk, "text", None)
-            chunk_thought = getattr(chunk, "thought", None)
-            chunk_tool_calls = getattr(chunk, "tool_calls", None)
-
-            if isinstance(chunk, str):
-                chunk_text = chunk
-            elif isinstance(chunk, list):
-                chunk_tool_calls = chunk
-
-            if chunk_thought:
-                full_thought += chunk_thought
+            if msg_type == "done":
+                break
+            elif msg_type == "error":
                 yield (
-                    json.dumps(
-                        {"type": "thought", "text": chunk_thought}, ensure_ascii=False
-                    )
+                    json.dumps({"type": "error", "error": chunk}, ensure_ascii=False)
                     + "\n"
                 ).encode("utf-8")
+                break
+            elif msg_type == "chunk":
+                chunk_text = getattr(chunk, "text", None)
+                chunk_thought = getattr(chunk, "thought", None)
+                chunk_tool_calls = getattr(chunk, "tool_calls", None)
 
-            if chunk_text:
-                full_text += chunk_text
-                yield (
-                    json.dumps(
-                        {"type": "chunk", "text": chunk_text}, ensure_ascii=False
-                    )
-                    + "\n"
-                ).encode("utf-8")
+                if isinstance(chunk, str):
+                    chunk_text = chunk
+                elif isinstance(chunk, list):
+                    chunk_tool_calls = chunk
 
-            if chunk_tool_calls:
-                has_tools = True
-                calls = [
-                    {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
-                    for tc in chunk_tool_calls
-                ]
-                if chat_id in CHATS:
-                    CHATS[chat_id]["messages"].append(
-                        Message(
-                            role="assistant",
-                            content=full_text
-                            if (full_text and full_text.strip())
-                            else None,
-                            thought=full_thought
-                            if (full_thought and full_thought.strip())
-                            else None,
-                            tool_calls=chunk_tool_calls,
+                if chunk_thought:
+                    full_thought += chunk_thought
+                    yield (
+                        json.dumps(
+                            {"type": "thought", "text": chunk_thought},
+                            ensure_ascii=False,
                         )
-                    )
-                    persist_chats()
-                yield (
-                    json.dumps(
-                        {"type": "tool_calls", "calls": calls}, ensure_ascii=False
-                    )
-                    + "\n"
-                ).encode("utf-8")
+                        + "\n"
+                    ).encode("utf-8")
 
-    if not has_tools and (
-        (full_text and full_text.strip()) or (full_thought and full_thought.strip())
-    ):
-        if chat_id in CHATS:
-            CHATS[chat_id]["messages"].append(
-                Message(
-                    role="assistant",
-                    content=full_text if full_text and full_text.strip() else None,
-                    thought=full_thought
-                    if full_thought and full_thought.strip()
-                    else None,
+                if chunk_text:
+                    full_text += chunk_text
+                    yield (
+                        json.dumps(
+                            {"type": "chunk", "text": chunk_text},
+                            ensure_ascii=False,
+                        )
+                        + "\n"
+                    ).encode("utf-8")
+
+                if chunk_tool_calls:
+                    has_tools = True
+                    calls = [
+                        {
+                            "id": tc.id,
+                            "name": tc.name,
+                            "arguments": tc.arguments,
+                        }
+                        for tc in chunk_tool_calls
+                    ]
+                    if chat_id in CHATS:
+                        CHATS[chat_id]["messages"].append(
+                            Message(
+                                role="assistant",
+                                content=full_text
+                                if (full_text and full_text.strip())
+                                else None,
+                                thought=full_thought
+                                if (full_thought and full_thought.strip())
+                                else None,
+                                tool_calls=chunk_tool_calls,
+                            )
+                        )
+                        persist_chats()
+                    yield (
+                        json.dumps(
+                            {"type": "tool_calls", "calls": calls},
+                            ensure_ascii=False,
+                        )
+                        + "\n"
+                    ).encode("utf-8")
+
+        if not has_tools and (
+            (full_text and full_text.strip()) or (full_thought and full_thought.strip())
+        ):
+            if chat_id in CHATS:
+                CHATS[chat_id]["messages"].append(
+                    Message(
+                        role="assistant",
+                        content=full_text if full_text and full_text.strip() else None,
+                        thought=full_thought
+                        if full_thought and full_thought.strip()
+                        else None,
+                    )
                 )
-            )
-            persist_chats()
+                persist_chats()
 
-    yield (json.dumps({"type": "done"}, ensure_ascii=False) + "\n").encode("utf-8")
+        yield (json.dumps({"type": "done"}, ensure_ascii=False) + "\n").encode("utf-8")
+
+    finally:
+        cancel_event.set()
 
 
 # ---------------------------------------------------------------------
@@ -738,6 +771,9 @@ def chat():
     attachments = data.get("attachments", [])
     chat_id = data.get("chat_id") or CURRENT_CHAT_ID
 
+    if not chat_id:
+        return jsonify({"status": "error", "message": "Missing chat_id parameter"}), 400
+
     info = []
     if user_text and user_text.strip():
         info.append(user_text)
@@ -782,7 +818,12 @@ def chat():
                 b64 = base64.b64encode(f.read()).decode("utf-8")
                 model_attachments.append(FileAttachment(mime_type=mime_type, data=b64))
 
-    if chat_id in CHATS:
+    with chats_lock:
+        if chat_id not in CHATS:
+            return jsonify(
+                {"status": "error", "message": f"Чат с ID '{chat_id}' не найден"}
+            ), 404
+
         if len(CHATS[chat_id]["messages"]) == 0:
             CHATS[chat_id]["title"] = user_text[:30] + (
                 "..." if len(user_text) > 30 else ""
@@ -807,7 +848,7 @@ def chat():
 def tool_result():
     data = request.get_json(force=True)
     result = data.get("result", {})
-    chat_id = data.get("chat_id")  # Explicitly isolated parameter
+    chat_id = data.get("chat_id")
 
     if not chat_id:
         return jsonify({"status": "error", "message": "Missing chat_id parameter"}), 400
@@ -816,7 +857,6 @@ def tool_result():
     if svg_path and os.path.exists(svg_path):
         with open(svg_path, "r", encoding="utf-8", errors="ignore") as f:
             result = dict(result)
-            # Use safe truncation instead of slicing
             result["svg"] = safe_truncate_svg(f.read(), MAX_SVG_CHAR_LIMIT)
 
     model_attachments = []
@@ -829,7 +869,12 @@ def tool_result():
             b64 = base64.b64encode(f.read()).decode("utf-8")
             model_attachments.append(FileAttachment(mime_type=mime_type, data=b64))
 
-    if chat_id in CHATS:
+    with chats_lock:
+        if chat_id not in CHATS:
+            return jsonify(
+                {"status": "error", "message": f"Чат с ID '{chat_id}' не найден"}
+            ), 404
+
         CHATS[chat_id]["messages"].append(
             Message(
                 role="tool",
