@@ -564,15 +564,41 @@ def auth_login():
         if os.path.exists(acc_file):
             with open(acc_file, "r", encoding="utf-8") as f:
                 d = json.load(f)
-                if d.get("accounts"):
-                    new_acc = d["accounts"][0]
-                    m_data = load_accounts()
-                    new_acc["name"] = f"Account {len(m_data['accounts']) + 1}"
-                    m_data["accounts"].append(new_acc)
-                    m_data["current_index"] = len(m_data["accounts"]) - 1
-                    save_accounts(m_data)
-                    global client
-                    client = get_current_client()
+
+            if d.get("accounts"):
+                new_acc = d["accounts"][0]
+                m_data = load_accounts()
+                accounts_list = m_data.get("accounts", [])
+
+                unique_id = (
+                    new_acc.get("id") or new_acc.get("token") or new_acc.get("email")
+                )
+
+                existing_index = None
+                for idx, acc in enumerate(accounts_list):
+                    acc_unique_id = (
+                        acc.get("id") or acc.get("token") or acc.get("email")
+                    )
+                    if unique_id and acc_unique_id == unique_id:
+                        existing_index = idx
+                        break
+
+                if existing_index is not None:
+                    new_acc["name"] = accounts_list[existing_index].get(
+                        "name", f"Account {existing_index + 1}"
+                    )
+                    accounts_list[existing_index] = new_acc
+                    m_data["current_index"] = existing_index
+                else:
+                    new_acc["name"] = f"Account {len(accounts_list) + 1}"
+                    accounts_list.append(new_acc)
+                    m_data["current_index"] = len(accounts_list) - 1
+
+                m_data["accounts"] = accounts_list
+                save_accounts(m_data)
+
+                global client
+                client = get_current_client()
 
     threading.Thread(target=do_login).start()
     return jsonify({"status": "started"})
