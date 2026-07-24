@@ -1,10 +1,10 @@
 {
-  "version": "1.4.2",
+  "version": "1.4.3",
   "auto_check": true,
   "update_url": "https://raw.githubusercontent.com/Makobcki/cdraw-ext/main/backend/version.json",
   "last_checked": null,
-  "latest_version": "1.4.2",
-  "release_notes": "### Backend\n* **Безопасность и стабильность:** Устранена уязвимость Path Traversal в `/temp_image` и исправлен race condition за счет передачи `chat_id` в payload.\n* **Производительность:** Генерация ИИ вынесена в фоновый воркер (`queue.Queue`), устранена блокировка потоков Flask.\n* **Исправления:** Реализована безопасная обрезка SVG XML (`safe_truncate_svg`).\n\n### Frontend\n* **Управление:** Кнопка «Стоп» прерывает запрос через `xhr.abort()` вместо полной перезагрузки страницы.\n* **UX и OAuth:** Задержка выбора модели снижена до 500 мс, таймаут авторизации увеличен до 90 с, отключена плавная прокрутка для IE11.\n* **Надежность:** Добавлена защита от сбоев при потере COM-ссылок.\n\n### Инструменты (CorelDRAW Bridge)\n* **Новые функции:** Добавлены `remove_fill` (для лазерной резки), булевы операции (`combine_shapes`, `weld_shapes`) и упрощение кривых (`simplify_curve`).\n* **Данные и локализация:** Описания инструментов переведены на английский, в инспекторы объектов добавлены параметры цвета и замкнутости контуров.",
+  "latest_version": "1.4.3",
+  "release_notes": "some fixes",
   "download_url": "https://github.com/Makobcki/cdraw-ext/archive/refs/heads/main.zip",
   "update_available": false,
   "last_updated": null,
