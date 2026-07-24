@@ -3,22 +3,13 @@
   "server_host": "127.0.0.1",
   "server_port": 5055,
   "browser_emulation_version": 11001,
-  "max_svg_char_limit": 6000,
+  "max_svg_char_limit": 12000,
   "model_hover_delay_ms": 1200,
   "update_url": "https://raw.githubusercontent.com/Makobcki/cdraw-ext/main/backend/version.json",
   "download_url": "https://github.com/Makobcki/cdraw-ext/archive/refs/heads/main.zip",
-  "model_blacklist_display_name_keywords": [
-    "image"
-  ],
-  "model_blacklist_api_name_keywords": [
-    "agent"
-  ],
-  "model_blacklist_keywords": [
-    "chat_",
-    "flash_lite",
-    "2.5 pro",
-    "flash lite"
-  ],
+  "model_blacklist_display_name_keywords": ["image"],
+  "model_blacklist_api_name_keywords": ["agent"],
+  "model_blacklist_keywords": ["chat_", "flash_lite", "2.5 pro", "flash lite"],
   "system_prompt_file": "system_prompt.md",
   "preserve_files": [
     ".venv",
