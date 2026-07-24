@@ -3,6 +3,8 @@ import base64
 import json
 import mimetypes
 import os
+import queue
+import re
 import sys
 import threading
 import uuid
@@ -151,15 +153,28 @@ def get_all_models(bypass_cache=False):
         ]
 
 
+def safe_truncate_svg(svg_text, limit=MAX_SVG_CHAR_LIMIT):
+    """Safely truncates SVG paths to avoid breaking XML validation."""
+    if len(svg_text) <= limit:
+        return svg_text
+
+    # Replace overly long path data with a placeholder to keep XML valid
+    svg_text = re.sub(
+        r'([dD]=["\'])[^\'"]{200,}(["\'])', r"\1...[TRUNCATED]...\2", svg_text
+    )
+
+    if len(svg_text) > limit:
+        # Hard fallback if it's still too large
+        return "<svg><text>SVG too large to display</text></svg>"
+    return svg_text
+
+
 def stream_agent_loop(chat_id):
     yield (" " * 2048 + "\n").encode("utf-8")
     if client is None:
         yield (
             json.dumps(
-                {
-                    "type": "error",
-                    "error": "Пожалуйста, авторизуйтесь (добавьте аккаунт) для продолжения.",
-                },
+                {"type": "error", "error": "Client not authenticated."},
                 ensure_ascii=False,
             )
             + "\n"
@@ -169,117 +184,116 @@ def stream_agent_loop(chat_id):
     chat_messages = CHATS.get(chat_id, {}).get("messages", [])
     messages = [Message(role="system", content=SYSTEM_PROMPT)] + chat_messages
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    q = queue.Queue()
 
-    async def get_stream():
-        return await client.generate(
-            model=AI_MODEL, messages=messages, tools=TOOLS, stream=True
-        )
-
-    try:
+    def worker():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
-            gen = loop.run_until_complete(get_stream())
+            gen = loop.run_until_complete(
+                client.generate(
+                    model=AI_MODEL, messages=messages, tools=TOOLS, stream=True
+                )
+            )
+            while True:
+                try:
+                    chunk = loop.run_until_complete(gen.__anext__())
+                    q.put(("chunk", chunk))
+                except StopAsyncIteration:
+                    break
         except Exception as e:
+            q.put(("error", str(e)))
+        finally:
+            q.put(("done", None))
+            loop.close()
+
+    threading.Thread(target=worker, daemon=True).start()
+
+    full_text = ""
+    full_thought = ""
+    has_tools = False
+
+    while True:
+        msg_type, chunk = q.get()
+
+        if msg_type == "done":
+            break
+        elif msg_type == "error":
             yield (
-                json.dumps({"type": "error", "error": str(e)}, ensure_ascii=False)
-                + "\n"
+                json.dumps({"type": "error", "error": chunk}, ensure_ascii=False) + "\n"
             ).encode("utf-8")
-            return
+            break
+        elif msg_type == "chunk":
+            chunk_text = getattr(chunk, "text", None)
+            chunk_thought = getattr(chunk, "thought", None)
+            chunk_tool_calls = getattr(chunk, "tool_calls", None)
 
-        full_text = ""
-        full_thought = ""
-        has_tools = False
+            if isinstance(chunk, str):
+                chunk_text = chunk
+            elif isinstance(chunk, list):
+                chunk_tool_calls = chunk
 
-        while True:
-            try:
-                chunk = loop.run_until_complete(gen.__anext__())
-
-                chunk_text = getattr(chunk, "text", None)
-                chunk_thought = getattr(chunk, "thought", None)
-                chunk_tool_calls = getattr(chunk, "tool_calls", None)
-
-                if isinstance(chunk, str):
-                    chunk_text = chunk
-                elif isinstance(chunk, list):
-                    chunk_tool_calls = chunk
-
-                if chunk_thought:
-                    full_thought += chunk_thought
-                    yield (
-                        json.dumps(
-                            {"type": "thought", "text": chunk_thought},
-                            ensure_ascii=False,
-                        )
-                        + "\n"
-                    ).encode("utf-8")
-
-                if chunk_text:
-                    full_text += chunk_text
-                    yield (
-                        json.dumps(
-                            {"type": "chunk", "text": chunk_text}, ensure_ascii=False
-                        )
-                        + "\n"
-                    ).encode("utf-8")
-
-                if chunk_tool_calls:
-                    has_tools = True
-                    calls = [
-                        {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
-                        for tc in chunk_tool_calls
-                    ]
-                    if chat_id in CHATS:
-                        content_val = (
-                            full_text if (full_text and full_text.strip()) else None
-                        )
-                        thought_val = (
-                            full_thought
-                            if (full_thought and full_thought.strip())
-                            else None
-                        )
-                        CHATS[chat_id]["messages"].append(
-                            Message(
-                                role="assistant",
-                                content=content_val,
-                                thought=thought_val,
-                                tool_calls=chunk_tool_calls,
-                            )
-                        )
-                        persist_chats()
-                    yield (
-                        json.dumps(
-                            {"type": "tool_calls", "calls": calls}, ensure_ascii=False
-                        )
-                        + "\n"
-                    ).encode("utf-8")
-            except StopAsyncIteration:
-                break
-            except Exception as e:
+            if chunk_thought:
+                full_thought += chunk_thought
                 yield (
-                    json.dumps({"type": "error", "error": str(e)}, ensure_ascii=False)
+                    json.dumps(
+                        {"type": "thought", "text": chunk_thought}, ensure_ascii=False
+                    )
                     + "\n"
                 ).encode("utf-8")
-                break
 
-        if not has_tools and (
-            (full_text and full_text.strip()) or (full_thought and full_thought.strip())
-        ):
-            if chat_id in CHATS:
-                CHATS[chat_id]["messages"].append(
-                    Message(
-                        role="assistant",
-                        content=full_text if full_text and full_text.strip() else None,
-                        thought=full_thought
-                        if full_thought and full_thought.strip()
-                        else None,
+            if chunk_text:
+                full_text += chunk_text
+                yield (
+                    json.dumps(
+                        {"type": "chunk", "text": chunk_text}, ensure_ascii=False
                     )
-                )
-                persist_chats()
+                    + "\n"
+                ).encode("utf-8")
 
-        yield (json.dumps({"type": "done"}, ensure_ascii=False) + "\n").encode("utf-8")
-    finally:
-        loop.close()
+            if chunk_tool_calls:
+                has_tools = True
+                calls = [
+                    {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
+                    for tc in chunk_tool_calls
+                ]
+                if chat_id in CHATS:
+                    CHATS[chat_id]["messages"].append(
+                        Message(
+                            role="assistant",
+                            content=full_text
+                            if (full_text and full_text.strip())
+                            else None,
+                            thought=full_thought
+                            if (full_thought and full_thought.strip())
+                            else None,
+                            tool_calls=chunk_tool_calls,
+                        )
+                    )
+                    persist_chats()
+                yield (
+                    json.dumps(
+                        {"type": "tool_calls", "calls": calls}, ensure_ascii=False
+                    )
+                    + "\n"
+                ).encode("utf-8")
+
+    if not has_tools and (
+        (full_text and full_text.strip()) or (full_thought and full_thought.strip())
+    ):
+        if chat_id in CHATS:
+            CHATS[chat_id]["messages"].append(
+                Message(
+                    role="assistant",
+                    content=full_text if full_text and full_text.strip() else None,
+                    thought=full_thought
+                    if full_thought and full_thought.strip()
+                    else None,
+                )
+            )
+            persist_chats()
+
+    yield (json.dumps({"type": "done"}, ensure_ascii=False) + "\n").encode("utf-8")
 
 
 # ---------------------------------------------------------------------
@@ -665,9 +679,15 @@ def get_history():
 @app.route("/temp_image", methods=["GET"])
 def temp_image():
     path = request.args.get("path", "")
-    if not path.startswith(SHARED_TEMP_DIR) or not os.path.exists(path):
+
+    # Path Traversal Fix
+    abs_path = os.path.abspath(path)
+    abs_temp_dir = os.path.abspath(SHARED_TEMP_DIR)
+
+    if not abs_path.startswith(abs_temp_dir) or not os.path.exists(abs_path):
         return Response(status=404)
-    with open(path, "rb") as f:
+
+    with open(abs_path, "rb") as f:
         data = f.read()
     return Response(data, mimetype="image/png")
 
@@ -788,13 +808,17 @@ def chat():
 def tool_result():
     data = request.get_json(force=True)
     result = data.get("result", {})
-    chat_id = data.get("chat_id") or CURRENT_CHAT_ID
+    chat_id = data.get("chat_id")  # Explicitly isolated parameter
+
+    if not chat_id:
+        return jsonify({"status": "error", "message": "Missing chat_id parameter"}), 400
 
     svg_path = result.get("svg_path")
     if svg_path and os.path.exists(svg_path):
         with open(svg_path, "r", encoding="utf-8", errors="ignore") as f:
             result = dict(result)
-            result["svg"] = f.read()[:MAX_SVG_CHAR_LIMIT]
+            # Use safe truncation instead of slicing
+            result["svg"] = safe_truncate_svg(f.read(), MAX_SVG_CHAR_LIMIT)
 
     model_attachments = []
     png_path = result.get("png_path")

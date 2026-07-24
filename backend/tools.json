@@ -1,22 +1,22 @@
 [
   {
     "name": "set_fill_color",
-    "description": "Задать сплошную заливку объекта. Передайте hex_color или cmyk_color. Если указаны оба цвета, приоритет отдается cmyk_color. Если документ в CMYK-режиме, RGB-цвет автоматически конвертируется в эквивалент CMYK.",
+    "description": "Set a solid fill color for an object. Pass hex_color or cmyk_color. If both colors are specified, priority is given to cmyk_color. If the document is in CMYK mode, RGB color is automatically converted to its CMYK equivalent.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор объекта"
+          "description": "Object identifier"
         },
         "hex_color": {
           "type": "string",
           "pattern": "^#[0-9A-Fa-f]{6}$",
-          "description": "Цвет заливки в формате #RRGGBB"
+          "description": "Fill color in #RRGGBB format"
         },
         "cmyk_color": {
           "type": "object",
-          "description": "Цвет заливки в формате CMYK (значения каналов от 0 до 100)",
+          "description": "Fill color in CMYK format (channel values from 0 to 100)",
           "properties": {
             "c": { "type": "number", "minimum": 0, "maximum": 100 },
             "m": { "type": "number", "minimum": 0, "maximum": 100 },
@@ -24,6 +24,62 @@
             "k": { "type": "number", "minimum": 0, "maximum": 100 }
           },
           "required": ["c", "m", "y", "k"]
+        }
+      },
+      "required": ["ref"]
+    }
+  },
+  {
+    "name": "remove_fill",
+    "description": "Removes the solid fill color entirely (no fill). Essential for laser cutting contours.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "ref": { "type": "string", "description": "Target shape reference." }
+      },
+      "required": ["ref"]
+    }
+  },
+  {
+    "name": "combine_shapes",
+    "description": "Combines multiple paths into a single compound path using the even-odd fill rule. Required for shapes with inner holes (like 'O' or 'A') before cutting.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of shape references to combine."
+        }
+      },
+      "required": ["refs"]
+    }
+  },
+  {
+    "name": "weld_shapes",
+    "description": "Welds multiple shapes into a single outline contour, merging overlapping paths. Used to clean intersecting shapes for a single cut path.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of shape references to weld."
+        }
+      },
+      "required": ["refs"]
+    }
+  },
+  {
+    "name": "simplify_curve",
+    "description": "Reduces the number of nodes on a curve shape after tracing to smooth paths and improve cutting speed.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "ref": { "type": "string", "description": "Target shape reference." },
+        "tolerance": {
+          "type": "number",
+          "description": "Tolerance value (e.g., 0.1). Larger means fewer nodes."
         }
       },
       "required": ["ref"]
@@ -31,22 +87,22 @@
   },
   {
     "name": "set_outline",
-    "description": "Задать параметры обводки (абриса) объекта: цвет, толщину и стиль линии. Для убирания обводки передайте style='none'.",
+    "description": "Set outline parameters for an object: color, thickness, and line style. To remove the outline, pass style='none'.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор объекта"
+          "description": "Object identifier"
         },
         "hex_color": {
           "type": "string",
           "pattern": "^#[0-9A-Fa-f]{6}$",
-          "description": "Цвет обводки в формате #RRGGBB"
+          "description": "Outline color in #RRGGBB format"
         },
         "cmyk_color": {
           "type": "object",
-          "description": "Цвет обводки в формате CMYK (значения каналов от 0 до 100)",
+          "description": "Outline color in CMYK format (channel values from 0 to 100)",
           "properties": {
             "c": { "type": "number", "minimum": 0, "maximum": 100 },
             "m": { "type": "number", "minimum": 0, "maximum": 100 },
@@ -58,12 +114,12 @@
         "width": {
           "type": "number",
           "minimum": 0,
-          "description": "Толщина линии обводки в единицах документа (doc.Unit)"
+          "description": "Outline line thickness in document units (doc.Unit)"
         },
         "style": {
           "type": "string",
           "enum": ["none", "solid", "dash", "dot", "dash_dot"],
-          "description": "Стиль линии: без обводки (none), сплошная (solid), пунктир (dash), точки (dot) или штрихпунктир (dash_dot)"
+          "description": "Line style: no outline (none), solid, dashed (dash), dotted (dot), or dash-dotted (dash_dot)"
         }
       },
       "required": ["ref"]
@@ -71,18 +127,18 @@
   },
   {
     "name": "flip",
-    "description": "Зеркально отразить объект по горизонтали или вертикали относительно его центра.",
+    "description": "Flip an object horizontally or vertically relative to its center.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор объекта"
+          "description": "Object identifier"
         },
         "direction": {
           "type": "string",
           "enum": ["horizontal", "vertical"],
-          "description": "Направление отражения: horizontal (горизонтально) или vertical (вертикально)"
+          "description": "Flip direction: horizontal or vertical"
         }
       },
       "required": ["ref", "direction"]
@@ -90,21 +146,21 @@
   },
   {
     "name": "set_position",
-    "description": "Переместить объект в координаты страницы в единицах документа (doc.Unit). X растет вправо, Y растет вверх от нижнего левого угла страницы CorelDRAW. По умолчанию позиция задается для верхнего левого угла объекта (anchor='top_left').",
+    "description": "Move an object to page coordinates in document units (doc.Unit). X increases to the right, Y increases upwards from the bottom-left corner of the CorelDRAW page. By default, position is specified for the top-left corner of the object (anchor='top_left').",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор объекта"
+          "description": "Object identifier"
         },
         "x": {
           "type": "number",
-          "description": "Координата X в единицах документа"
+          "description": "X coordinate in document units"
         },
         "y": {
           "type": "number",
-          "description": "Координата Y в единицах документа"
+          "description": "Y coordinate in document units"
         },
         "anchor": {
           "type": "string",
@@ -115,7 +171,7 @@
             "top_right",
             "bottom_right"
           ],
-          "description": "Опорная точка привязки объекта (по умолчанию top_left)"
+          "description": "Anchor point for object positioning (default: top_left)"
         }
       },
       "required": ["ref", "x", "y"]
@@ -123,27 +179,27 @@
   },
   {
     "name": "set_size",
-    "description": "Задать ширину и высоту объекта в единицах документа (doc.Unit). По умолчанию масштабирование идет относительно верхнего левого угла без сохранения пропорций.",
+    "description": "Set the width and height of an object in document units (doc.Unit). By default, scaling occurs relative to the top-left corner without maintaining proportions.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор объекта"
+          "description": "Object identifier"
         },
         "width": {
           "type": "number",
           "minimum": 0,
-          "description": "Новая ширина объекта в единицах документа"
+          "description": "New object width in document units"
         },
         "height": {
           "type": "number",
           "minimum": 0,
-          "description": "Новая высота объекта в единицах документа"
+          "description": "New object height in document units"
         },
         "keep_aspect_ratio": {
           "type": "boolean",
-          "description": "Сохранять пропорции объекта (по умолчанию false)"
+          "description": "Maintain aspect ratio of the object (default: false)"
         },
         "anchor": {
           "type": "string",
@@ -154,7 +210,7 @@
             "top_right",
             "bottom_right"
           ],
-          "description": "Опорная точка при изменении размера (по умолчанию top_left)"
+          "description": "Anchor point when resizing (default: top_left)"
         }
       },
       "required": ["ref", "width", "height"]
@@ -162,17 +218,17 @@
   },
   {
     "name": "rotate",
-    "description": "Повернуть объект на заданный угол в градусах. Положительный угол — поворот против часовой стрелки (стандарт CorelDRAW), отрицательный — по часовой. По умолчанию поворот выполняется относительно центра объекта.",
+    "description": "Rotate an object by a specified angle in degrees. Positive angle indicates counterclockwise rotation (CorelDRAW standard), negative indicates clockwise rotation. By default, rotation is performed relative to the center of the object.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор объекта"
+          "description": "Object identifier"
         },
         "angle": {
           "type": "number",
-          "description": "Угол поворота в градусах"
+          "description": "Rotation angle in degrees"
         },
         "pivot": {
           "type": "string",
@@ -183,7 +239,7 @@
             "top_right",
             "bottom_right"
           ],
-          "description": "Точка пивота вращения (по умолчанию center)"
+          "description": "Pivot point for rotation (default: center)"
         }
       },
       "required": ["ref", "angle"]
@@ -191,21 +247,21 @@
   },
   {
     "name": "duplicate",
-    "description": "Продублировать объект. По умолчанию копия создается ровно поверх оригинала (offset_x=0, offset_y=0). Возвращает ref новой копии.",
+    "description": "Duplicate an object. By default, the copy is created directly on top of the original (offset_x=0, offset_y=0). Returns the ref of the new copy.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор объекта"
+          "description": "Object identifier"
         },
         "offset_x": {
           "type": "number",
-          "description": "Смещение новой копии по горизонтали X (по умолчанию 0)"
+          "description": "Horizontal X offset of the new copy (default: 0)"
         },
         "offset_y": {
           "type": "number",
-          "description": "Смещение новой копии по вертикали Y (по умолчанию 0)"
+          "description": "Vertical Y offset of the new copy (default: 0)"
         }
       },
       "required": ["ref"]
@@ -213,13 +269,13 @@
   },
   {
     "name": "delete_shape",
-    "description": "Удалить объект из документа.",
+    "description": "Delete an object from the document.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор объекта"
+          "description": "Object identifier"
         }
       },
       "required": ["ref"]
@@ -227,13 +283,13 @@
   },
   {
     "name": "convert_to_curves",
-    "description": "Преобразовать фигуру или текстовый объект в кривые (Convert to Curves).",
+    "description": "Convert a shape or text object to curves (Convert to Curves).",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор объекта"
+          "description": "Object identifier"
         }
       },
       "required": ["ref"]
@@ -241,13 +297,13 @@
   },
   {
     "name": "order",
-    "description": "Изменить порядок наложения объекта в слое. Позволяет перемещать относительно слоев (front/back/forward/backward) или относительно конкретного целевого объекта (in_front_of/behind, требует передачи target_ref).",
+    "description": "Change the stacking order (z-order) of an object within the layer. Allows moving relative to layers (front/back/forward/backward) or relative to a specific target object (in_front_of/behind, requires passing target_ref).",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор объекта"
+          "description": "Object identifier"
         },
         "mode": {
           "type": "string",
@@ -259,11 +315,11 @@
             "in_front_of",
             "behind"
           ],
-          "description": "Направление или режим перемещения"
+          "description": "Movement direction or mode"
         },
         "target_ref": {
           "type": "string",
-          "description": "Идентификатор целевого объекта (обязателен при режиме in_front_of или behind)"
+          "description": "Identifier of the target object (required when mode is in_front_of or behind)"
         }
       },
       "required": ["ref", "mode"]
@@ -271,13 +327,13 @@
   },
   {
     "name": "export_svg",
-    "description": "Получить визуальное превью (PNG) и актуальные векторные SVG-данные объекта для анализа его содержимого, формы, геометрии и структуры.",
+    "description": "Retrieve a visual preview (PNG) and current vector SVG data of the object to analyze its content, shape, geometry, and structure.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор объекта"
+          "description": "Object identifier"
         }
       },
       "required": ["ref"]
@@ -285,21 +341,21 @@
   },
   {
     "name": "import_svg",
-    "description": "Создать новый векторный объект из SVG-разметки. Если координаты x и y не указаны, новый объект автоматически размещается по центру выделения или страницы.",
+    "description": "Create a new vector object from SVG markup. If x and y coordinates are not specified, the new object is automatically centered on the selection or page.",
     "parameters": {
       "type": "object",
       "properties": {
         "svg": {
           "type": "string",
-          "description": "Полная SVG-разметка"
+          "description": "Full SVG markup"
         },
         "x": {
           "type": "number",
-          "description": "Координата X размещения (опционально)"
+          "description": "Placement X coordinate (optional)"
         },
         "y": {
           "type": "number",
-          "description": "Координата Y размещения (опционально)"
+          "description": "Placement Y coordinate (optional)"
         },
         "anchor": {
           "type": "string",
@@ -310,7 +366,7 @@
             "top_right",
             "bottom_right"
           ],
-          "description": "Опорная точка нового SVG при размещении в (x, y) (по умолчанию top_left)"
+          "description": "Anchor point of the new SVG when placing at (x, y) (default: top_left)"
         }
       },
       "required": ["svg"]
@@ -318,21 +374,21 @@
   },
   {
     "name": "replace_shape_svg",
-    "description": "Заменить существующий объект новым SVG-контуром на месте. Старый объект удаляется, а новый размещается точно на его месте с сохранением координат и порядка наложения (z-order). По умолчанию новый SVG автоматически масштабируется под габариты старого объекта (preserve_size=true).",
+    "description": "Replace an existing object with a new SVG contour in place. The old object is deleted, and the new one is placed exactly in its location while preserving coordinates and stacking order (z-order). By default, the new SVG automatically scales to match the dimensions of the old object (preserve_size=true).",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор заменяемого объекта"
+          "description": "Identifier of the object to replace"
         },
         "svg": {
           "type": "string",
-          "description": "Новая векторная SVG-разметка"
+          "description": "New vector SVG markup"
         },
         "preserve_size": {
           "type": "boolean",
-          "description": "Масштабировать новый SVG под габариты (ширину и высоту) старого объекта (по умолчанию true). При false вставляется в оригинальном размере viewBox."
+          "description": "Scale the new SVG to match the dimensions (width and height) of the old object (default: true). If false, it is inserted at the original viewBox size."
         }
       },
       "required": ["ref", "svg"]
@@ -340,13 +396,13 @@
   },
   {
     "name": "get_object_info",
-    "description": "Получить подробную информацию и текущие физические свойства выбранного объекта: тип фигуры, координаты (x, y), размеры (width, height), угол поворота, цвета заливки/обводки, слой и порядок наложения.",
+    "description": "Retrieve detailed information and current physical properties of the selected object: shape type, coordinates (x, y), dimensions (width, height), rotation angle, fill/outline colors, layer, and stacking order.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор объекта"
+          "description": "Object identifier"
         }
       },
       "required": ["ref"]
@@ -354,13 +410,13 @@
   },
   {
     "name": "trace_bitmap",
-    "description": "Трассировать (векторизовать) растровое изображение — PowerTRACE. Результат появляется поверх оригинала и возвращается как new_refs; исходный битмап по умолчанию не удаляется.",
+    "description": "Trace (vectorize) a raster image using PowerTRACE. The result appears on top of the original and is returned as new_refs; the source bitmap is not deleted by default.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор растрового объекта"
+          "description": "Bitmap object identifier"
         },
         "style": {
           "type": "string",
@@ -374,7 +430,7 @@
             "technical",
             "line_drawing"
           ],
-          "description": "Пресет трассировки (соответствует стилям PowerTRACE)"
+          "description": "Tracing preset (corresponds to PowerTRACE styles)"
         }
       },
       "required": ["ref", "style"]
@@ -382,7 +438,7 @@
   },
   {
     "name": "get_page_info",
-    "description": "Получить размер текущей страницы (в мм и единицах документа), единицы измерения (doc.Unit) и полный список всех объектов (shapes) на активной странице с их ref, типами, текстом, координатами и размерами.",
+    "description": "Retrieves the active page constraints and the exact list of all shapes currently on the canvas, including fill and outline colors, and dimensions.",
     "parameters": {
       "type": "object",
       "properties": {},
@@ -391,35 +447,35 @@
   },
   {
     "name": "set_text",
-    "description": "Изменить содержимое текстового блока, а также опционально его гарнитуру, размер, цвет и выравнивание. Параметры стилизации (font_name, font_size, hex_color, alignment) применяются ко всему текстовому блоку целиком.",
+    "description": "Change the content of a text block, as well as optionally its font family, size, color, and alignment. Styling parameters (font_name, font_size, hex_color, alignment) apply to the entire text block.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор текстового объекта"
+          "description": "Text object identifier"
         },
         "text": {
           "type": "string",
-          "description": "Новый текст"
+          "description": "New text content"
         },
         "font_name": {
           "type": "string",
-          "description": "Имя шрифта (например, Arial, Times New Roman)"
+          "description": "Font name (e.g., Arial, Times New Roman)"
         },
         "font_size": {
           "type": "number",
           "minimum": 0,
-          "description": "Кегль (размер шрифта) в пунктах (pt)"
+          "description": "Font size in points (pt)"
         },
         "hex_color": {
           "type": "string",
           "pattern": "^#[0-9A-Fa-f]{6}$",
-          "description": "Цвет текста в формате #RRGGBB"
+          "description": "Text color in #RRGGBB format"
         },
         "cmyk_color": {
           "type": "object",
-          "description": "Цвет текста в формате CMYK (каналы 0..100)",
+          "description": "Text color in CMYK format (channel values 0..100)",
           "properties": {
             "c": { "type": "number", "minimum": 0, "maximum": 100 },
             "m": { "type": "number", "minimum": 0, "maximum": 100 },
@@ -431,7 +487,7 @@
         "alignment": {
           "type": "string",
           "enum": ["left", "center", "right", "justify"],
-          "description": "Выравнивание текста"
+          "description": "Text alignment"
         }
       },
       "required": ["ref"]
@@ -439,7 +495,7 @@
   },
   {
     "name": "group_shapes",
-    "description": "Сгруппировать несколько выделенных объектов в одну группу.",
+    "description": "Group multiple selected objects into a single group.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -448,7 +504,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Список идентификаторов объектов для группировки"
+          "description": "List of object identifiers to group"
         }
       },
       "required": ["refs"]
@@ -456,13 +512,13 @@
   },
   {
     "name": "ungroup_shapes",
-    "description": "Разгруппировать группу объектов.",
+    "description": "Ungroup a group of objects.",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "Идентификатор группы объектов"
+          "description": "Group object identifier"
         }
       },
       "required": ["ref"]
@@ -470,7 +526,7 @@
   },
   {
     "name": "align_objects",
-    "description": "Выровнять объекты относительно друг друга или страницы.",
+    "description": "Align objects relative to each other or to the page.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -479,22 +535,22 @@
           "items": {
             "type": "string"
           },
-          "description": "Список идентификаторов объектов для выравнивания"
+          "description": "List of object identifiers to align"
         },
         "align_h": {
           "type": "string",
           "enum": ["left", "center", "right", "none"],
-          "description": "Выравнивание по горизонтали: left, center, right"
+          "description": "Horizontal alignment: left, center, right"
         },
         "align_v": {
           "type": "string",
           "enum": ["top", "center", "bottom", "none"],
-          "description": "Выравнивание по вертикали: top, center, bottom"
+          "description": "Vertical alignment: top, center, bottom"
         },
         "relative_to": {
           "type": "string",
           "enum": ["selection", "page"],
-          "description": "Относительно выделения или страницы (по умолчанию selection)"
+          "description": "Align relative to selection or page (default: selection)"
         }
       },
       "required": ["refs"]
@@ -502,7 +558,7 @@
   },
   {
     "name": "distribute_objects",
-    "description": "Равномерно распределить выделенные объекты по горизонтали или вертикали.",
+    "description": "Evenly distribute selected objects horizontally or vertically.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -511,17 +567,17 @@
           "items": {
             "type": "string"
           },
-          "description": "Список идентификаторов объектов для распределения"
+          "description": "List of object identifiers to distribute"
         },
         "direction": {
           "type": "string",
           "enum": ["horizontal", "vertical"],
-          "description": "Направление распределения: горизонтально или вертикально"
+          "description": "Distribution direction: horizontal or vertical"
         },
         "mode": {
           "type": "string",
           "enum": ["equal_spaces", "equal_centers"],
-          "description": "Режим: равные интервалы между гранями (equal_spaces) или между центрами (equal_centers)"
+          "description": "Distribution mode: equal spacing between edges (equal_spaces) or between centers (equal_centers)"
         }
       },
       "required": ["refs", "direction"]

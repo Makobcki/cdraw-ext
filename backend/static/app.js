@@ -90,14 +90,17 @@
 
   var scrollTimer = null;
   var activeUserMsgTop = null;
+  var scrollTimer = null;
+  var activeUserMsgTop = null;
+  var isIE11 = !!window.MSInputMethodContext && !!document.documentMode;
+
   function scrollToBottom(smooth) {
     adjustMessagesAlignment();
-
     var m = byId("messages");
     if (!m) return;
-
     var target;
     var isLocked = activeUserMsgTop !== null && activeUserMsgTop >= 0;
+
     if (isLocked) {
       target = activeUserMsgTop;
     } else {
@@ -105,11 +108,11 @@
     }
 
     if (target < 0) target = 0;
-
     if (target <= m.scrollTop && !isLocked) return;
     if (target === m.scrollTop) return;
 
-    if (!smooth) {
+    // Disabled smooth scroll for IE11 to prevent flicker issues
+    if (!smooth || isIE11) {
       m.scrollTop = target;
       return;
     }
@@ -141,6 +144,46 @@
     } else if (msgScrollEl.attachEvent) {
       msgScrollEl.attachEvent("onscroll", adjustMessagesAlignment);
     }
+  }
+  var scrollTimer = null;
+  var activeUserMsgTop = null;
+  var isIE11 = !!window.MSInputMethodContext && !!document.documentMode;
+
+  function scrollToBottom(smooth) {
+    adjustMessagesAlignment();
+    var m = byId("messages");
+    if (!m) return;
+    var target;
+    var isLocked = activeUserMsgTop !== null && activeUserMsgTop >= 0;
+
+    if (isLocked) {
+      target = activeUserMsgTop;
+    } else {
+      target = m.scrollHeight - m.clientHeight;
+    }
+
+    if (target < 0) target = 0;
+    if (target <= m.scrollTop && !isLocked) return;
+    if (target === m.scrollTop) return;
+
+    // Disabled smooth scroll for IE11 to prevent flicker issues
+    if (!smooth || isIE11) {
+      m.scrollTop = target;
+      return;
+    }
+
+    if (scrollTimer) clearInterval(scrollTimer);
+    scrollTimer = setInterval(function () {
+      var current = m.scrollTop;
+      var diff = target - current;
+      if (Math.abs(diff) <= 2) {
+        m.scrollTop = target;
+        clearInterval(scrollTimer);
+      } else {
+        m.scrollTop =
+          current + (diff > 0 ? Math.ceil(diff / 4) : Math.floor(diff / 4));
+      }
+    }, 15);
   }
 
   function renderMarkdown(text) {
@@ -207,21 +250,60 @@
   // Networking (XMLHttpRequest — no fetch in the legacy engine)
   // ---------------------------------------------------------------
 
-  function postJSON(url, data, onSuccess, onError) {
+  var activeStreamRequest = null; // Store reference to current generation HTTP stream
+
+  function postJSONStream(url, data, onChunk, onComplete, onError) {
     var xhr = new XMLHttpRequest();
+    activeStreamRequest = xhr;
     xhr.open("POST", url, true);
     xhr.setRequestHeader("Content-Type", "application/json");
+
+    var seenBytes = 0;
+    var buffer = "";
+
     xhr.onreadystatechange = function () {
-      if (xhr.readyState === 4) {
+      if (xhr.readyState === 3 || xhr.readyState === 4) {
         if (xhr.status === 200) {
-          try {
-            var resp = JSON.parse(xhr.responseText);
-            if (onSuccess) onSuccess(resp);
-          } catch (e) {
-            if (onError) onError(e);
+          var text = xhr.responseText || "";
+          var newData = text.substring(seenBytes);
+          seenBytes = text.length;
+
+          if (newData) {
+            buffer += newData;
+            var parts = buffer.split("\n");
+            buffer = parts.pop();
+            var unparsed = "";
+
+            for (var i = 0; i < parts.length; i++) {
+              var line = unparsed ? unparsed + parts[i] : parts[i];
+              if (line.trim()) {
+                try {
+                  var payload = JSON.parse(line);
+                  onChunk(payload);
+                  unparsed = "";
+                } catch (e) {
+                  unparsed = line + "\n";
+                }
+              }
+            }
+            if (unparsed) {
+              buffer = unparsed + buffer;
+            }
           }
-        } else {
-          if (onError) onError(new Error("HTTP " + xhr.status));
+        }
+      }
+      if (xhr.readyState === 4) {
+        if (activeStreamRequest === xhr) activeStreamRequest = null;
+        if (xhr.status === 200) {
+          if (buffer.trim()) {
+            try {
+              onChunk(JSON.parse(buffer));
+            } catch (e) {}
+          }
+          if (onComplete) onComplete();
+        } else if (xhr.status !== 0) {
+          // status 0 is typically abort
+          if (onError) onError(new Error("Status " + xhr.status));
         }
       }
     };
@@ -826,6 +908,22 @@
       props.colors = colorsToArray(colors);
     } catch (e) {}
 
+    try {
+      if (shape.Fill && shape.Fill.Type === 1 /* cdrUniformFill */) {
+        props.fill_color = colorToHex(shape.Fill.UniformColor);
+      } else if (shape.Fill && shape.Fill.Type === 0 /* cdrNoFill */) {
+        props.fill_color = "none";
+      }
+    } catch (eColor) {}
+
+    try {
+      if (shape.Outline && shape.Outline.Type !== 0 /* cdrNoOutline */) {
+        props.outline_color = colorToHex(shape.Outline.Color);
+      } else {
+        props.outline_color = "none";
+      }
+    } catch (eOutline) {}
+
     props.size_formatted =
       (props.width_mm || 0) +
       " x " +
@@ -896,33 +994,32 @@
       for (i = 1; i <= prevSel.Shapes.Count; i += 1) {
         prevNames.push(prevSel.Shapes.Item(i).Name);
       }
-    } catch (e) {
-      /* ignore */
-    }
+    } catch (e) {}
 
     try {
       if (doc) {
-        doc.DeselectAll(); // Confirmed CorelDRAW Document.DeselectAll() method
+        doc.DeselectAll();
       }
-    } catch (e) {
-      /* ignore */
-    }
-    shape.Selected = true; // confirmed pattern from Corel's VBA programming guide
+    } catch (e) {}
 
-    fn();
+    try {
+      shape.Selected = true;
+      fn();
+    } catch (eCore) {
+      log("Error inside isolated action: " + eCore.message);
+    }
 
     try {
       doc.DeselectAll();
       var j;
+      // Fixed: Graceful, individual try-catch blocks to prevent broken COM references from halting the loop
       for (j = 0; j < prevNames.length; j += 1) {
-        var s = findShapeByRef(prevNames[j]);
-        if (s) {
-          s.Selected = true;
-        }
+        try {
+          var s = findShapeByRef(prevNames[j]);
+          if (s) s.Selected = true;
+        } catch (eLoop) {}
       }
-    } catch (e) {
-      /* best effort restore only */
-    }
+    } catch (eRestore) {}
   }
 
   // Exports the given shape to PNG and SVG at paths the backend already
@@ -1210,6 +1307,85 @@
         cb({ ok: true });
       } catch (e) {
         cb({ error: "Ошибка преобразования в кривые: " + e.message });
+      }
+    },
+
+    remove_fill: function (args, cb) {
+      if (!isCdrAvailable()) {
+        cb({ ok: true });
+        return;
+      }
+      try {
+        var shape = requireShape(args.ref);
+        if (shape.Fill) shape.Fill.ApplyNoFill();
+        cb({ ok: true });
+      } catch (e) {
+        cb({ error: "Failed to remove fill: " + e.message });
+      }
+    },
+
+    weld_shapes: function (args, cb) {
+      try {
+        if (!args || !args.refs || args.refs.length < 2) {
+          cb({ error: "Requires at least 2 shapes to weld." });
+          return;
+        }
+        var sr = cdrApp().CreateShapeRange();
+        for (var i = 0; i < args.refs.length; i++) {
+          var s = findShapeByRef(args.refs[i]);
+          if (s) sr.Add(s);
+        }
+        if (sr.Count < 2) {
+          cb({ error: "Shapes not found for weld." });
+          return;
+        }
+
+        var welded = sr.Item(1);
+        for (var j = 2; j <= sr.Count; j++) {
+          welded = welded.Weld(sr.Item(j));
+        }
+        var newRef = ensureShapeName(welded);
+        cb({ ok: true, new_ref: newRef });
+      } catch (e) {
+        cb({ error: "Weld failed: " + e.message });
+      }
+    },
+
+    combine_shapes: function (args, cb) {
+      try {
+        if (!args || !args.refs || args.refs.length < 2) {
+          cb({ error: "Requires at least 2 shapes to combine." });
+          return;
+        }
+        var sr = cdrApp().CreateShapeRange();
+        for (var i = 0; i < args.refs.length; i++) {
+          var s = findShapeByRef(args.refs[i]);
+          if (s) sr.Add(s);
+        }
+        var combined = sr.Combine();
+        var newRef = ensureShapeName(combined);
+        cb({ ok: true, new_ref: newRef });
+      } catch (e) {
+        cb({ error: "Combine failed: " + e.message });
+      }
+    },
+
+    simplify_curve: function (args, cb) {
+      if (!isCdrAvailable()) {
+        cb({ ok: true });
+        return;
+      }
+      try {
+        var shape = requireShape(args.ref);
+        var tolerance = args.tolerance || 0.1; // Default tolerance
+        if (shape.Curve && shape.Curve.Nodes) {
+          shape.Curve.Nodes.All().AutoReduce(tolerance);
+          cb({ ok: true });
+        } else {
+          cb({ error: "Shape is not a valid curve." });
+        }
+      } catch (e) {
+        cb({ error: "Failed to simplify curve: " + e.message });
       }
     },
 
@@ -2897,8 +3073,11 @@
     byId("sendBtn").onclick = sendMessage;
     byId("stopBtn").onclick = function () {
       endUndoGroup();
-      // Hard refresh to interrupt backend streaming
-      location.reload();
+      if (activeStreamRequest) {
+        activeStreamRequest.abort();
+        activeStreamRequest = null;
+      }
+      setBusy(false);
     };
 
     byId("inputText").onkeydown = function (e) {
@@ -3047,12 +3226,13 @@
   }
 
   function loginAccount() {
+    customAlert("Opening browser for OAuth login. Please authenticate...");
     postJSON("/auth/login", {}, function (res) {
       var polls = 0;
       var interval = setInterval(function () {
         loadAccounts();
         polls++;
-        if (polls > 10) clearInterval(interval);
+        if (polls > 30) clearInterval(interval); // Poll for 90s instead of 30s
       }, 3000);
     });
   }
@@ -3526,7 +3706,7 @@
                 hoverTimer = setTimeout(function () {
                   targetSpan.innerHTML = "";
                   targetSpan.appendChild(document.createTextNode(apiName));
-                }, 1200);
+                }, 500);
               };
               li.onmouseout = function () {
                 if (hoverTimer) {
