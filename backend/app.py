@@ -678,18 +678,17 @@ def get_history():
 
 @app.route("/temp_image", methods=["GET"])
 def temp_image():
-    path = request.args.get("path", "")
+    filename = request.args.get("path", "")
 
-    # Path Traversal Fix
-    abs_path = os.path.abspath(path)
-    abs_temp_dir = os.path.abspath(SHARED_TEMP_DIR)
-
-    if not abs_path.startswith(abs_temp_dir) or not os.path.exists(abs_path):
+    if not filename:
         return Response(status=404)
 
-    with open(abs_path, "rb") as f:
-        data = f.read()
-    return Response(data, mimetype="image/png")
+    try:
+        return send_from_directory(
+            directory=SHARED_TEMP_DIR, path=filename, mimetype="image/png"
+        )
+    except (FileNotFoundError, ValueError):
+        return Response(status=404)
 
 
 @app.route("/export_paths", methods=["GET"])
