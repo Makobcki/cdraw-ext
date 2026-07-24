@@ -26,7 +26,8 @@
           "required": ["c", "m", "y", "k"]
         }
       },
-      "required": ["ref"]
+      "required": ["ref"],
+      "anyOf": [{ "required": ["hex_color"] }, { "required": ["cmyk_color"] }]
     }
   },
   {
@@ -42,7 +43,7 @@
   },
   {
     "name": "combine_shapes",
-    "description": "Combines multiple paths into a single compound path using the even-odd fill rule. Required for shapes with inner holes (like 'O' or 'A') before cutting.",
+    "description": "Combines multiple paths into a single compound path using the even-odd fill rule. Required for shapes with inner holes (like 'O' or 'A') before cutting. Returns the ref of the resulting shape; the original refs are consumed and become invalid.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -57,7 +58,7 @@
   },
   {
     "name": "weld_shapes",
-    "description": "Welds multiple shapes into a single outline contour, merging overlapping paths. Used to clean intersecting shapes for a single cut path.",
+    "description": "Welds multiple shapes into a single outline contour, merging overlapping paths. Used to clean intersecting shapes for a single cut path. Returns the ref of the resulting shape; the original refs are consumed and become invalid.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -79,7 +80,7 @@
         "ref": { "type": "string", "description": "Target shape reference." },
         "tolerance": {
           "type": "number",
-          "description": "Tolerance value (e.g., 0.1). Larger means fewer nodes."
+          "description": "Tolerance value in document units (doc.Unit). Larger means fewer nodes (default: 0.1)."
         }
       },
       "required": ["ref"]
@@ -189,12 +190,12 @@
         },
         "width": {
           "type": "number",
-          "minimum": 0,
+          "exclusiveMinimum": 0,
           "description": "New object width in document units"
         },
         "height": {
           "type": "number",
-          "minimum": 0,
+          "exclusiveMinimum": 0,
           "description": "New object height in document units"
         },
         "keep_aspect_ratio": {
@@ -396,7 +397,7 @@
   },
   {
     "name": "get_object_info",
-    "description": "Retrieve detailed information and current physical properties of the selected object: shape type, coordinates (x, y), dimensions (width, height), rotation angle, fill/outline colors, layer, and stacking order.",
+    "description": "Retrieve detailed information about a single object. Returns: ref (string); typeName (string — common values: Rectangle, Ellipse, Curve, Text, Bitmap, Group; treat any other value as the closest matching type); x, y (top-left corner position, in doc.Unit); width, height (in doc.Unit); rotation (degrees); fill (hex_color and/or cmyk_color, or null if no fill); outline (hex_color/cmyk_color, width, style, or null if no outline); is_closed (boolean — whether a Curve-type object's path is a single closed loop; not meaningful for other types); layer (layer name); z_order (integer stacking position within the layer). For Text objects, also returns the literal text content, font_name, font_size, and alignment.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -438,7 +439,7 @@
   },
   {
     "name": "get_page_info",
-    "description": "Retrieves the active page constraints and the exact list of all shapes currently on the canvas, including fill and outline colors, and dimensions.",
+    "description": "Retrieve page and document context. Returns: page_width, page_height (in doc.Unit); unit (the document's current doc.Unit, e.g. 'mm', 'in', 'px' — use this to convert any planning math into the correct units before calling other tools); and shapes — the full list of objects on the active page, each with the same fields as get_object_info (ref, typeName, x, y, width, height, rotation, fill, outline, is_closed, layer, z_order, and text fields for Text objects). Call this to synchronize with the current document state before planning multi-step or multi-object operations, or after any tool failure.",
     "parameters": {
       "type": "object",
       "properties": {},
@@ -465,7 +466,7 @@
         },
         "font_size": {
           "type": "number",
-          "minimum": 0,
+          "exclusiveMinimum": 0,
           "description": "Font size in points (pt)"
         },
         "hex_color": {
