@@ -90,8 +90,6 @@
 
   var scrollTimer = null;
   var activeUserMsgTop = null;
-  var scrollTimer = null;
-  var activeUserMsgTop = null;
   var isIE11 = !!window.MSInputMethodContext && !!document.documentMode;
 
   function scrollToBottom(smooth) {
@@ -145,9 +143,6 @@
       msgScrollEl.attachEvent("onscroll", adjustMessagesAlignment);
     }
   }
-  var scrollTimer = null;
-  var activeUserMsgTop = null;
-  var isIE11 = !!window.MSInputMethodContext && !!document.documentMode;
 
   function scrollToBottom(smooth) {
     adjustMessagesAlignment();
@@ -303,59 +298,6 @@
           if (onComplete) onComplete();
         } else if (xhr.status !== 0) {
           // status 0 is typically abort
-          if (onError) onError(new Error("Status " + xhr.status));
-        }
-      }
-    };
-    xhr.send(JSON.stringify(data));
-  }
-
-  function postJSONStream(url, data, onChunk, onComplete, onError) {
-    var xhr = new XMLHttpRequest();
-    xhr.open("POST", url, true);
-    xhr.setRequestHeader("Content-Type", "application/json");
-    var seenBytes = 0;
-    var buffer = "";
-
-    xhr.onreadystatechange = function () {
-      if (xhr.readyState === 3 || xhr.readyState === 4) {
-        if (xhr.status === 200) {
-          var text = xhr.responseText || "";
-          var newData = text.substring(seenBytes);
-          seenBytes = text.length;
-          if (newData) {
-            buffer += newData;
-            var parts = buffer.split("\n");
-            buffer = parts.pop();
-            var unparsed = "";
-            for (var i = 0; i < parts.length; i++) {
-              var line = unparsed ? unparsed + parts[i] : parts[i];
-              if (line.trim()) {
-                try {
-                  var payload = JSON.parse(line);
-                  onChunk(payload);
-                  unparsed = "";
-                } catch (e) {
-                  // Saved in case chunk boundary split a multi-byte character or line
-                  unparsed = line + "\n";
-                }
-              }
-            }
-            if (unparsed) {
-              buffer = unparsed + buffer;
-            }
-          }
-        }
-      }
-      if (xhr.readyState === 4) {
-        if (xhr.status === 200) {
-          if (buffer.trim()) {
-            try {
-              onChunk(JSON.parse(buffer));
-            } catch (e) {}
-          }
-          if (onComplete) onComplete();
-        } else {
           if (onError) onError(new Error("Status " + xhr.status));
         }
       }
